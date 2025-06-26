@@ -28,7 +28,7 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsRasterLayer
 # from qgis import processing
 
 import processing
@@ -53,7 +53,7 @@ Processing.initialize()  # Initialize the Processing framework
 
 #helper functions
 def addLayer(uri, name, group):
-    """Adds a vector layer to the QGIS project."""
+    """Adds a Map layer to the QGIS project."""
     print(f"Adding layer {name}...")
     vlayer = QgsVectorLayer(uri, name, "ogr")
     project.addMapLayer(vlayer)
@@ -62,7 +62,7 @@ def addLayer(uri, name, group):
 
 
 def clipRaster( input_raster, mask_layer, output_path):
-    # Set parameters for the clip operation
+    # Set parameters for the clip operation and save the output (without adding the layer to the project)
     clip_params = {
         'INPUT': input_raster,
         'MASK': mask_layer,
@@ -76,17 +76,74 @@ def clipRaster( input_raster, mask_layer, output_path):
 
     print(f"Raster clipped successfully to {output_path}")
 
+def get_contours(input_raster, SU, interval=2.0):
+    """Generates contours from a raster layer."""
+
+    print(f"Generating contours for {SU} with interval {interval} cm...")
+    output_path = f"{SU}_{int(interval)}cm.shp"  # Output shapefile for contours
+    contour_params = {
+        'INPUT': input_raster,
+        'BAND': 1,  # Assuming the first band is the one to contour
+        'INTERVAL': interval,
+        'FIELD_NAME': 'elevation',  # Name of the field to store contour values
+        'OUTPUT': output_path
+    }
+
+    # Run the contour generation
+    processing.run("gdal:contour", contour_params)
+
+    print(f"Contours generated successfully and saved to {output_path}")
+    return output_path
+
+def addContour(contour_file, group):
+    """Adds contour layer to the specified group in the project."""
+    print(f"Adding contour layer from {contour_file}...")
+    contour_layer = QgsVectorLayer(contour_file, "Contours", "ogr")
+    if not contour_layer.isValid():
+        print("Failed to load contour layer.")
+        return
+    
+    
+    project.addMapLayer(contour_layer)
+    group.insertLayer(0, contour_layer)  # Insert the layer at the top of the group
+
+    #add contour style
+    # style = QgsStyle.defaultStyle()
+    # style.readFromQML("contour_style.qml")
+    # contour_layer.renderer().readXML(style.symbol('default_symbol'))
+    contour_layer.loadNamedStyle('contour_style.qml')
+    contour_layer.triggerRepaint()
+
+
+    print("Contour layer added:", contour_layer.name())
+
+def addDEM(DEM_path, group):
+    """Adds a DEM layer to the specified group in the project."""
+    print(f"Adding DEM layer from {DEM_path}...")
+    dem_layer = QgsRasterLayer(DEM_path, "DEM Layer")
+    if not dem_layer.isValid():
+        print("Failed to load DEM layer.")
+        return
+    
+    project.addMapLayer(dem_layer)
+    group.insertLayer(0, dem_layer)  # Insert the layer at the top of the group
+
+    # Set the style for the DEM layer
+    dem_layer.loadNamedStyle('DEM_Color_Ramp_Syle.qml')
+    dem_layer.triggerRepaint()
+
+    print("DEM layer added:", dem_layer.name())
+
 
 SU = "SU_17001"  # Example SU name, change as needed
 TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
 JobID = "707"
-SU_ShapeFile = "3D_SU_Shapefiles/SU_17001_EPSG_32632.shp"  # Example shapefile name, change as needed
-DEM_path = "DEM/Pgram_Job_707_SU17001_dem.tif"
+SU_ShapeFile_name = "SU_17001_EPSG_32632.shp"
+SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example shapefile name, change as needed
+DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
 
 # Get the project instance
 project = QgsProject.instance()
-# # Print the current project file name (might be empty in case no projects have been loaded)
-# print(project.fileName()) #doesn't print even with the older version of QGIS
 
 
 print("Loading project...")
@@ -110,21 +167,28 @@ if SU_folder is None:
     SU_folder = trench_folder.addGroup(SU)  # Add SU folder under trench folder
 
 
+# Check if the SU Shape layer already exists in the SU folder
+# if project.mapLayersByName(SU_ShapeFile_name) is None:
+#     #add the layer to the SU folder
+print("Adding SU shapefile layer...")
+addLayer(SU_ShapeFile,SU_ShapeFile_name,SU_folder)
 
-addLayer(SU_ShapeFile,"SU_17001_EPSG_32632.shp",SU_folder)
-#add the layer to the SU folder
 
 
 
-print("clipping DEM to the mask layer...")
-# Print the trench folder name
-#clip DEM to the mask layer
-clipRaster(
-    input_raster=DEM_path,
-    mask_layer=SU_ShapeFile,
-    output_path=SU+"_DEM.tif"
-)
+# # print("clipping DEM to the mask layer...")
+# # Print the trench folder name
+# #clip DEM to the mask layer
+# clipRaster(
+#     input_raster=DEM_path,
+#     mask_layer=SU_ShapeFile,
+#     output_path=SU+"_DEM.tif"
+# )
 
+# #get contours from the clipped DEM
+# contour_file = get_contours(SU+"_DEM.tif", SU, interval=2.0)
+# print("Contour file generated:", contour_file)
+# addContour(contour_file, SU_folder)
 
 
 #UNCOMMENT TO SAVE THE PROJECT
