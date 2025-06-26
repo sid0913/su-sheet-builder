@@ -28,17 +28,11 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsRasterLayer
-# from qgis import processing
-
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
 import processing
 from processing.core.Processing import Processing
-
-
-
-# # Supply path to qgis install location
+# Supply path to qgis install location
 QgsApplication.setPrefixPath("C:\\Program Files\\QGIS 3.40.8", True)  
-from qgis.core import QgsProject
 
 
 PATH = "C:\\Users\\Photogrammetry"
@@ -57,7 +51,7 @@ def addLayer(uri, name, group):
     print(f"Adding layer {name}...")
     vlayer = QgsVectorLayer(uri, name, "ogr")
     project.addMapLayer(vlayer)
-    group.insertLayer(0, vlayer)  # Insert the layer at the top of the group
+    # group.insertLayer(0, vlayer)  # Insert the layer at the top of the group
     print("Layer added:", vlayer.name())
 
 
@@ -76,17 +70,18 @@ def clipRaster( input_raster, mask_layer, output_path):
 
     print(f"Raster clipped successfully to {output_path}")
 
-def get_contours(input_raster, SU, interval=2.0):
+def get_contours(input_raster, SU, interval=0.02):
     """Generates contours from a raster layer."""
 
-    print(f"Generating contours for {SU} with interval {interval} cm...")
-    output_path = f"{SU}_{int(interval)}cm.shp"  # Output shapefile for contours
+    print(f"Generating contours for {SU} with interval {interval*100} cm...")
+    output_path = f"{SU}_{int(interval*100)}cm.shp"  # Output shapefile for contours
     contour_params = {
         'INPUT': input_raster,
         'BAND': 1,  # Assuming the first band is the one to contour
         'INTERVAL': interval,
-        'FIELD_NAME': 'elevation',  # Name of the field to store contour values
-        'OUTPUT': output_path
+        'FIELD_NAME': 'ELEV',  # Name of the field to store contour values
+        'OUTPUT': output_path,
+        'SHAPE_RESTORE_SHX': True,  # Ensure SHX file is created
     }
 
     # Run the contour generation
@@ -104,15 +99,19 @@ def addContour(contour_file, group):
         return
     
     
-    project.addMapLayer(contour_layer)
-    group.insertLayer(0, contour_layer)  # Insert the layer at the top of the group
+    
+    # group.insertLayer(0, contour_layer)  # Insert the layer at the top of the group
 
     #add contour style
+
     # style = QgsStyle.defaultStyle()
     # style.readFromQML("contour_style.qml")
     # contour_layer.renderer().readXML(style.symbol('default_symbol'))
+    
     contour_layer.loadNamedStyle('contour_style.qml')
     contour_layer.triggerRepaint()
+    project.addMapLayer(contour_layer)
+    
 
 
     print("Contour layer added:", contour_layer.name())
@@ -125,14 +124,41 @@ def addDEM(DEM_path, group):
         print("Failed to load DEM layer.")
         return
     
-    project.addMapLayer(dem_layer)
-    group.insertLayer(0, dem_layer)  # Insert the layer at the top of the group
-
+    
+    # group.insertLayer(0, dem_layer)  # Insert the layer at the top of the group
+    
     # Set the style for the DEM layer
-    dem_layer.loadNamedStyle('DEM_Color_Ramp_Syle.qml')
+    # dem_layer.loadNamedStyle('DEM_Color_Ramp_Syle.qml')
+    project.addMapLayer(dem_layer)
+    # dem_layer.reload()
+    # dem_layer.triggerRepaint()
+    # dem_layer.repaintRequested.emit()
+
+    # force_style_refresh(dem_layer)
+    # dem_layer.dataChanged.emit()
+
+
+    color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
+    ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
+    ramp_shader.classifyColorRamp()# Add this line
+    raster_shader = QgsRasterShader()
+    raster_shader.setRasterShaderFunction(ramp_shader)
+
+    renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, raster_shader)
+
+    dem_layer.setRenderer(renderer)
     dem_layer.triggerRepaint()
+    
+    # Method 5: For vector layers, trigger feature count update
+    # if hasattr(dem_layer, 'updateFeatureCount'):
+    #     dem_layer.updateFeatureCount()
+
+
+    
 
     print("DEM layer added:", dem_layer.name())
+
+
 
 
 SU = "SU_17001"  # Example SU name, change as needed
@@ -141,6 +167,8 @@ JobID = "707"
 SU_ShapeFile_name = "SU_17001_EPSG_32632.shp"
 SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example shapefile name, change as needed
 DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
+CONTOUR_INTERVAL = 0.02
+
 
 # Get the project instance
 project = QgsProject.instance()
@@ -179,16 +207,19 @@ addLayer(SU_ShapeFile,SU_ShapeFile_name,SU_folder)
 # # print("clipping DEM to the mask layer...")
 # # Print the trench folder name
 # #clip DEM to the mask layer
-# clipRaster(
-#     input_raster=DEM_path,
-#     mask_layer=SU_ShapeFile,
-#     output_path=SU+"_DEM.tif"
-# )
+clipRaster(
+    input_raster=DEM_path,
+    mask_layer=SU_ShapeFile,
+    output_path=SU+"_DEM.tif"
+)
 
-# #get contours from the clipped DEM
-# contour_file = get_contours(SU+"_DEM.tif", SU, interval=2.0)
-# print("Contour file generated:", contour_file)
-# addContour(contour_file, SU_folder)
+#get contours from the clipped DEM
+contour_file = get_contours(SU+"_DEM.tif", SU, interval=CONTOUR_INTERVAL)
+print("Contour file generated:", contour_file)
+addContour(contour_file, SU_folder)
+
+
+addDEM(SU+"_DEM.tif", SU_folder)
 
 
 #UNCOMMENT TO SAVE THE PROJECT
