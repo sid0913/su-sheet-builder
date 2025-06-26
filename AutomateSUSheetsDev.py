@@ -105,7 +105,7 @@ def addContour(contour_file, group):
         return
     
     
-    project.addMapLayer(contour_layer)
+    
     # group.insertLayer(0, contour_layer)  # Insert the layer at the top of the group
 
     #add contour style
@@ -116,6 +116,8 @@ def addContour(contour_file, group):
     
     contour_layer.loadNamedStyle('contour_style.qml')
     contour_layer.triggerRepaint()
+    project.addMapLayer(contour_layer)
+    
 
 
     print("Contour layer added:", contour_layer.name())
@@ -128,14 +130,82 @@ def addDEM(DEM_path, group):
         print("Failed to load DEM layer.")
         return
     
-    project.addMapLayer(dem_layer)
+    
     # group.insertLayer(0, dem_layer)  # Insert the layer at the top of the group
-
+    
     # Set the style for the DEM layer
     dem_layer.loadNamedStyle('DEM_Color_Ramp_Syle.qml')
+    project.addMapLayer(dem_layer)
+    # dem_layer.reload()
     dem_layer.triggerRepaint()
+    dem_layer.repaintRequested.emit()
+
+    force_style_refresh(dem_layer)
+    dem_layer.dataChanged.emit()
+    
+    # Method 5: For vector layers, trigger feature count update
+    if hasattr(dem_layer, 'updateFeatureCount'):
+        dem_layer.updateFeatureCount()
+
+
+    
 
     print("DEM layer added:", dem_layer.name())
+
+def force_style_refresh(layer):
+    """
+    Comprehensive function to force style refresh after loading
+    Works in both standalone and QGIS Desktop environments
+    """
+    # Method 1: Reload the layer (most important)
+    layer.reload()
+    
+    # Method 2: Trigger repaint
+    layer.triggerRepaint()
+    
+    # Method 3: Emit signals
+    layer.dataChanged.emit()
+    layer.repaintRequested.emit()
+    
+
+    # Method 4: Update renderer if it's a vector layer
+    if hasattr(layer, 'renderer') and layer.renderer():
+        # Force renderer to update
+        renderer = layer.renderer()
+        if hasattr(renderer, 'startRender'):
+            # Create a minimal render context to force renderer update
+            from qgis.core import QgsRenderContext
+            context = QgsRenderContext()
+            renderer.startRender(context, layer.fields())
+            renderer.stopRender(context)
+    
+    # Method 5: Update layer in project
+    project = QgsProject.instance()
+    if layer in project.mapLayers().values():
+        project.layerTreeRoot().findLayer(layer.id()).setItemVisibilityChecked(True)
+    
+    # Method 5: Update layer in project
+    project = QgsProject.instance()
+    if layer in project.mapLayers().values():
+        project.layerTreeRoot().findLayer(layer.id()).setItemVisibilityChecked(True)
+    
+    # Method 6: Only use iface methods if available (QGIS Desktop)
+    # if iface is not None:
+    #     try:
+    #         # Refresh layer symbology in legend
+    #         iface.layerTreeView().refreshLayerSymbology(layer.id())
+            
+    #         # Multiple canvas refresh methods
+    #         iface.mapCanvas().refresh()
+    #         iface.mapCanvas().refreshAllLayers()
+            
+    #         print("GUI refresh applied (QGIS Desktop mode)")
+    #     except Exception as e:
+    #         print(f"GUI refresh failed: {e}")
+    # else:
+    #     print("Running in standalone mode - GUI refresh skipped")
+    
+    print(f"Style refresh completed for layer: {layer.name()}")
 
 
 SU = "SU_17001"  # Example SU name, change as needed
@@ -197,6 +267,7 @@ addContour(contour_file, SU_folder)
 
 
 addDEM(SU+"_DEM.tif", SU_folder)
+
 
 #UNCOMMENT TO SAVE THE PROJECT
 print("saving project...")
