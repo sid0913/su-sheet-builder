@@ -28,17 +28,11 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsRasterLayer
-# from qgis import processing
-
+from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
 import processing
 from processing.core.Processing import Processing
-
-
-
-# # Supply path to qgis install location
+# Supply path to qgis install location
 QgsApplication.setPrefixPath("C:\\Program Files\\QGIS 3.40.8", True)  
-from qgis.core import QgsProject
 
 
 PATH = "C:\\Users\\Photogrammetry"
@@ -144,7 +138,6 @@ def addDEM(DEM_path, group):
     # dem_layer.dataChanged.emit()
 
 
-    from  qgis.core  import QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
     color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
     ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
     ramp_shader.classifyColorRamp()# Add this line
@@ -165,60 +158,7 @@ def addDEM(DEM_path, group):
 
     print("DEM layer added:", dem_layer.name())
 
-def force_style_refresh(layer):
-    """
-    Comprehensive function to force style refresh after loading
-    Works in both standalone and QGIS Desktop environments
-    """
-    # Method 1: Reload the layer (most important)
-    layer.reload()
-    
-    # Method 2: Trigger repaint
-    layer.triggerRepaint()
-    
-    # Method 3: Emit signals
-    layer.dataChanged.emit()
-    layer.repaintRequested.emit()
-    
 
-    # Method 4: Update renderer if it's a vector layer
-    if hasattr(layer, 'renderer') and layer.renderer():
-        # Force renderer to update
-        renderer = layer.renderer()
-        if hasattr(renderer, 'startRender'):
-            # Create a minimal render context to force renderer update
-            from qgis.core import QgsRenderContext
-            context = QgsRenderContext()
-            renderer.startRender(context, layer.fields())
-            renderer.stopRender(context)
-    
-    # Method 5: Update layer in project
-    project = QgsProject.instance()
-    if layer in project.mapLayers().values():
-        project.layerTreeRoot().findLayer(layer.id()).setItemVisibilityChecked(True)
-    
-    # Method 5: Update layer in project
-    project = QgsProject.instance()
-    if layer in project.mapLayers().values():
-        project.layerTreeRoot().findLayer(layer.id()).setItemVisibilityChecked(True)
-    
-    # Method 6: Only use iface methods if available (QGIS Desktop)
-    # if iface is not None:
-    #     try:
-    #         # Refresh layer symbology in legend
-    #         iface.layerTreeView().refreshLayerSymbology(layer.id())
-            
-    #         # Multiple canvas refresh methods
-    #         iface.mapCanvas().refresh()
-    #         iface.mapCanvas().refreshAllLayers()
-            
-    #         print("GUI refresh applied (QGIS Desktop mode)")
-    #     except Exception as e:
-    #         print(f"GUI refresh failed: {e}")
-    # else:
-    #     print("Running in standalone mode - GUI refresh skipped")
-    
-    print(f"Style refresh completed for layer: {layer.name()}")
 
 
 SU = "SU_17001"  # Example SU name, change as needed
