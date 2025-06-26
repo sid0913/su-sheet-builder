@@ -134,18 +134,31 @@ def addDEM(DEM_path, group):
     # group.insertLayer(0, dem_layer)  # Insert the layer at the top of the group
     
     # Set the style for the DEM layer
-    dem_layer.loadNamedStyle('DEM_Color_Ramp_Syle.qml')
+    # dem_layer.loadNamedStyle('DEM_Color_Ramp_Syle.qml')
     project.addMapLayer(dem_layer)
     # dem_layer.reload()
-    dem_layer.triggerRepaint()
-    dem_layer.repaintRequested.emit()
+    # dem_layer.triggerRepaint()
+    # dem_layer.repaintRequested.emit()
 
-    force_style_refresh(dem_layer)
-    dem_layer.dataChanged.emit()
+    # force_style_refresh(dem_layer)
+    # dem_layer.dataChanged.emit()
+
+
+    from  qgis.core  import QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+    color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
+    ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
+    ramp_shader.classifyColorRamp()# Add this line
+    raster_shader = QgsRasterShader()
+    raster_shader.setRasterShaderFunction(ramp_shader)
+
+    renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, raster_shader)
+
+    dem_layer.setRenderer(renderer)
+    dem_layer.triggerRepaint()
     
     # Method 5: For vector layers, trigger feature count update
-    if hasattr(dem_layer, 'updateFeatureCount'):
-        dem_layer.updateFeatureCount()
+    # if hasattr(dem_layer, 'updateFeatureCount'):
+    #     dem_layer.updateFeatureCount()
 
 
     
