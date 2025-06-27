@@ -28,7 +28,8 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from qgis.core import QgsApplication, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from PyQt5.QtXml import QDomDocument
 import processing
 from processing.core.Processing import Processing
 # Supply path to qgis install location
@@ -81,7 +82,7 @@ def get_contours(input_raster, SU, interval=0.02):
         'INTERVAL': interval,
         'FIELD_NAME': 'ELEV',  # Name of the field to store contour values
         'OUTPUT': output_path,
-        'SHAPE_RESTORE_SHX': True,  # Ensure SHX file is created
+        'SHAPE_RESTORE_SHX': "YES",  # Ensure SHX file is created
     }
 
     # Run the contour generation
@@ -137,7 +138,7 @@ def addDEM(DEM_path, group):
     # force_style_refresh(dem_layer)
     # dem_layer.dataChanged.emit()
 
-
+    #add a default color ramp shader to the DEM layer
     color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
     ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
     ramp_shader.classifyColorRamp()# Add this line
@@ -160,6 +161,85 @@ def addDEM(DEM_path, group):
 
 
 
+class SUSheetTemplate():
+    def __init__(self, template_path, su, trench, description, pdf_path):
+        
+        #initialize the SU information
+        self.su = su
+        self.trench = trench
+        self.description = description
+        self.pdf_path = pdf_path
+
+
+        #load the layout template
+        self.doc, self.layout, self.items = self.load_layout_template(template_path)
+
+    
+    
+    def load_layout_template(self, template_path):
+        """
+        Loads a QGIS layout template.
+
+        Args:
+            template_path (str): The path to the .qpt template file.
+        """
+        print(f"Loading layout template from {template_path}...")
+        project = QgsProject.instance()
+        layout_name = os.path.splitext(os.path.basename(template_path))[0]
+        layout = QgsPrintLayout(project)
+        layout.initializeDefaults()  # Initialize with a default page
+        layout.setName(layout_name)
+
+        # Load the template content
+        with open(template_path, 'rt', encoding='utf-8') as f:
+            template_content = f.read()
+
+        doc = QDomDocument()
+        doc.setContent(template_content)
+        items, ok = layout.loadFromTemplate(doc, QgsReadWriteContext(), True)
+
+        # Check if the template was loaded successfully
+        if not ok:
+            print(f"Failed to load layout template from {template_path}.")
+            return None, None, None
+
+        print(f"Layout '{layout_name}' loaded successfully with {len(items)} items.")
+
+
+        print("Setting up layout properties...")
+        print([item.displayName() for item in items])
+
+        
+        # return layout properties
+        return doc, layout, items
+    
+    
+    def generatePDF(self, pdf_path):
+        """        Exports the layout to a PDF file.
+        Args:
+            pdf_path (str): The path where the PDF will be saved.
+        """
+        print("exporting layout to pdf...")
+
+        if not self.layout:
+            print("Layout is not initialized. Cannot export to PDF.")
+            return
+        
+        if not pdf_path:
+
+            # If no PDF path is provided and no default path is set, print an error message
+            if not self.pdf_path:
+                print("No PDF path provided. Cannot export to PDF.")
+                return
+            
+            #use the default pdf path
+            else:
+                pdf_path = self.pdf_path
+        
+        #export the layout to PDF
+        exporter = QgsLayoutExporter(self.layout)
+        exporter.exportToPdf(pdf_path, QgsLayoutExporter.PdfExportSettings())
+
 
 SU = "SU_17001"  # Example SU name, change as needed
 TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
@@ -168,7 +248,16 @@ SU_ShapeFile_name = "SU_17001_EPSG_32632.shp"
 SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example shapefile name, change as needed
 DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
 CONTOUR_INTERVAL = 0.02
+TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
 
+SU_data = {
+    "SU": SU,
+    "TRENCH": TRENCH,
+    "JobID": JobID,
+    "SU_ShapeFile_name": SU_ShapeFile_name,
+    "SU_ShapeFile": SU_ShapeFile,
+    "DEM_path": DEM_path,
+}
 
 # Get the project instance
 project = QgsProject.instance()
@@ -221,6 +310,12 @@ addContour(contour_file, SU_folder)
 
 addDEM(SU+"_DEM.tif", SU_folder)
 
+su_sheet = SUSheetTemplate("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, "SU Description", TEMPLATE_PDF_PATH)
+
+su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
+
+
+
 
 #UNCOMMENT TO SAVE THE PROJECT
 print("saving project...")
@@ -244,6 +339,5 @@ qgs.exitQgis()
 # # # Load another project
 
 # print(os.listdir(project.absoluteFilePath()))
-
 
 
