@@ -28,7 +28,8 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsProject, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from qgis.core import QgsApplication, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from PyQt5.QtXml import QDomDocument
 import processing
 from processing.core.Processing import Processing
 # Supply path to qgis install location
@@ -137,7 +138,7 @@ def addDEM(DEM_path, group):
     # force_style_refresh(dem_layer)
     # dem_layer.dataChanged.emit()
 
-
+    #add a default color ramp shader to the DEM layer
     color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
     ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
     ramp_shader.classifyColorRamp()# Add this line
@@ -159,6 +160,38 @@ def addDEM(DEM_path, group):
     print("DEM layer added:", dem_layer.name())
 
 
+def load_layout_template(template_path, clear_existing=True):
+    """
+    Loads a QGIS layout template.
+
+    Args:
+        template_path (str): The path to the .qpt template file.
+        clear_existing (bool, optional): Whether to clear existing layout items. Defaults to True.
+    """
+    print(f"Loading layout template from {template_path}...")
+    project = QgsProject.instance()
+    layout_name = os.path.splitext(os.path.basename(template_path))[0]
+    layout = QgsPrintLayout(project)
+    layout.initializeDefaults()  # Initialize with a default page
+    layout.setName(layout_name)
+
+
+    # Load the template content
+    with open(template_path, 'rt', encoding='utf-8') as f:
+        template_content = f.read()
+
+    doc = QDomDocument()
+    doc.setContent(template_content)
+    items, ok = layout.loadFromTemplate(doc, QgsReadWriteContext(), clear_existing)
+
+    print(f"Layout '{layout_name}' loaded successfully with {len(items)} items.")
+
+    print("exporting layout to pdf...")
+    exporter = QgsLayoutExporter(layout)
+    exporter.exportToPdf(TEMPLATE_PDF_PATH, QgsLayoutExporter.PdfExportSettings())
+
+
+    return doc, layout, items
 
 
 SU = "SU_17001"  # Example SU name, change as needed
@@ -168,7 +201,7 @@ SU_ShapeFile_name = "SU_17001_EPSG_32632.shp"
 SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example shapefile name, change as needed
 DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
 CONTOUR_INTERVAL = 0.02
-
+TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
 
 # Get the project instance
 project = QgsProject.instance()
@@ -220,6 +253,9 @@ addContour(contour_file, SU_folder)
 
 
 addDEM(SU+"_DEM.tif", SU_folder)
+
+load_layout_template("SU_Layout_Templates/SU_Template_17000.qpt", clear_existing=True)
+
 
 
 #UNCOMMENT TO SAVE THE PROJECT
