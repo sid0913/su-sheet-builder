@@ -161,7 +161,7 @@ def addDEM(DEM_path, group):
 
 
 
-class SUSheetTemplate():
+class SUSheet():
     def __init__(self, template_path, su, trench, description, pdf_path):
         
         #initialize the SU information
@@ -310,7 +310,8 @@ addContour(contour_file, SU_folder)
 
 addDEM(SU+"_DEM.tif", SU_folder)
 
-su_sheet = SUSheetTemplate("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, "SU Description", TEMPLATE_PDF_PATH)
+#create an SU Sheet
+su_sheet = SUSheet("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, "SU Description", TEMPLATE_PDF_PATH)
 
 su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
 
