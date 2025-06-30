@@ -221,16 +221,22 @@ class SUSheet():
             }
         }
 
+
+
         #TODO: pick the bookmark zoom level for the Trench
 
         #DEM map
-        # print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
+        print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
+        print("This is the locked value:",self.maps["Page 1"]["Ortho"].isLocked())  # Set the scale of the DEM map
+
+        self.maps["Page 1"]["DEM"].setLocked(False)  # Set the scale of the DEM map
+        self.maps["Page 1"]["Ortho"].setLocked(False)  # Set the scale of the DEM map
         self.layers_dict["drone-flight"].setOpacity(0)  # Ensure the drone flight layer is visible in the layout
         #TODO: turn on trench boundaries
         #TODO: turn on Trench Area contours
-        self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
-        self.layers_dict["contour_layer"].setVisibility(False)  # make the contour layer invisible in the layout
-        self.layers_dict["SU_ShapeFile"].setOpacity(0) 
+        # self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
+        # self.layers_dict["contour_layer"].setItemVisibilityChecked(False)  # make the contour layer invisible in the layout
+        # self.layers_dict["SU_ShapeFile"].setOpacity(0) 
         
         #TODO:zoom to the SU (try using zoom to layer somehow(?)- it seems to calculate the centroid already and can zoom out a bit if needed)
         #lock the DEM map item
@@ -316,7 +322,8 @@ class SUSheet():
         exporter = QgsLayoutExporter(self.layout)
         exporter.exportToPdf(pdf_path, QgsLayoutExporter.PdfExportSettings())
 
-
+# QGS_FILE_NAME="TARP_2025_SU_Template_new_test.qgs"
+QGS_FILE_NAME="TARP_SU_Sheets_2025_test.qgs"
 SU = "SU_17001"  # Example SU name, change as needed
 TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
 JobID = "707"
@@ -325,6 +332,8 @@ SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example sha
 DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
 CONTOUR_INTERVAL = 0.02
 TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
+
+
 
 layers_dict = {}
 
@@ -345,7 +354,7 @@ project = QgsProject.instance()
 
 
 print("Loading project...")
-project.read('TARP_SU_Sheets_2025_test.qgs')
+project.read(QGS_FILE_NAME)  # Load the project file
 print("project",project.fileName())
 
 
@@ -358,6 +367,7 @@ print("project",project.fileName())
 #create SU folder if it doesn't exist
 root = project.layerTreeRoot()
 print("These are the initial project layers",[item.name() for item in root.children()])
+
 list_of_gcp_layers = [ item for item in root.children() if item.name() == "GCP-Drone-Flight-2025"]  # Get the root children (top-level groups and layers)
 # check if the GCP-Drone-Flight-2025 layer exists
 if len(list_of_gcp_layers) < 1:
