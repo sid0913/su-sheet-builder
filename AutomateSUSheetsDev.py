@@ -325,8 +325,8 @@ class SUSheet():
         #TODO: adjust zoom level using bookmarks or centroid like 'zoom to layer'
 
         #lock the DEM map item
-        self.maps["Page 1"]["Overview"].setLocked(True)  # Lock the DEM map item
-        self.maps["Page 2"]["Overview"].setLocked(True)  # Lock the DEM map item
+        lockItem(self.maps["Page 1"]["Overview"]) # Lock the overview map item, page 1
+        lockItem(self.maps["Page 2"]["Overview"])  # Lock the overview map item, page 2
 
 
         #Ortho map
@@ -334,6 +334,10 @@ class SUSheet():
 
         self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
+
+
+        lockItem(self.maps["Page 1"]["Ortho"]) # Lock the overview map item, page 1
+        lockItem(self.maps["Page 3"]["Ortho"])  # Lock the overview map item, page 2
 
 
         #TODO: adjust the legends on the maps
