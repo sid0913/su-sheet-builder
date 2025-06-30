@@ -28,7 +28,7 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from qgis.core import QgsApplication, QgsRasterRange, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
 from PyQt5.QtXml import QDomDocument
 import processing
 from processing.core.Processing import Processing
@@ -55,6 +55,68 @@ def addLayer(uri, name, group):
     # group.insertLayer(0, vlayer)  # Insert the layer at the top of the group
     print("Layer added:", vlayer.name())
     return vlayer
+
+
+def setNoDataValue(layer):
+    provider = layer.dataProvider()
+    band_count = provider.bandCount()
+
+    # Add 255 as additional no-data value for each band
+    for band in range(1, band_count + 1):
+        # Get existing no-data ranges
+        existing_no_data = provider.userNoDataValues(band)
+
+        # Check if 255 is already included
+        already_set = any(r.min() == 255 and r.max() == 255 for r in existing_no_data)
+
+        if not already_set:
+            # Create a QgsRasterRange with 255 as min and max
+            new_range = QgsRasterRange(255, 255)
+            existing_no_data.append(new_range)
+
+            # Set updated no-data ranges for the band
+            provider.setUserNoDataValue(band, existing_no_data)
+
+    layer.triggerRepaint()
+
+
+def add_ortho_photo(JobID, project, layers_dict):
+    """Adds an ortho photo layer to the project based on the JobID."""
+
+
+    for file in os.listdir("Orthos"):
+
+        #check if it is a jpg file and then split the filename by '_' and if the second index is matches the job ID, then add the layer
+        if file.endswith(".jpg") and file.split('_')[2] == JobID:
+            ortho_photo_path = os.path.join("Orthos", file)
+            print(f"Found ortho photo for Job {JobID}: {ortho_photo_path}")
+            print("Adding ortho photo layer...")
+
+
+            # Create a QgsRasterLayer for the ortho photo
+            ortho_layer = QgsRasterLayer(ortho_photo_path, f"Ortho")
+            # provider = ortho_layer.dataProvider()
+
+            # result  = provider.setNoDataValue(1, 0) #first one is referred to band number
+
+            # if result:
+            #     print(f"NoData value set successfully for {ortho_layer.name()}")
+            # else:
+            #     print(f"Failed to set NoData value for {ortho_layer.name()}") 
+
+            # ortho_layer.triggerRepaint()
+
+            #get rid of the white space around the ortho photo
+            setNoDataValue(ortho_layer)  # Set NoData value for the ortho layer
+
+            project.addMapLayer(ortho_layer)
+            # Add the ortho photo layer to the layers dictionary
+            layers_dict["ortho_photo"] = QgsRasterLayer(ortho_photo_path, f"Ortho Photo Job {JobID}")
+            return
+    # If no ortho photo is found, raise an error
+    raise FileNotFoundError(f"No ortho photo found for Job {JobID} in the 'Orthos' directory.")
+    
+
 
 def lockItem(item):
     """Locks the specified item in the layout."""
@@ -139,7 +201,7 @@ def addContour(contour_file, group):
     # style.readFromQML("contour_style.qml")
     # contour_layer.renderer().readXML(style.symbol('default_symbol'))
     
-    contour_layer.loadNamedStyle('contour_style.qml')
+    contour_layer.loadNamedStyle('Styles/contour_style.qml')
     contour_layer.triggerRepaint()
     project.addMapLayer(contour_layer)
     
@@ -165,14 +227,9 @@ def addDEM(DEM_path, group):
     # group.insertLayer(0, dem_layer)  # Insert the layer at the top of the group
     
     # Set the style for the DEM layer
-    # dem_layer.loadNamedStyle('DEM_Color_Ramp_Syle.qml')
+    # dem_layer.loadNamedStyle('Styles/DEM_Color_Ramp_Syle.qml')
     project.addMapLayer(dem_layer)
-    # dem_layer.reload()
-    # dem_layer.triggerRepaint()
-    # dem_layer.repaintRequested.emit()
 
-    # force_style_refresh(dem_layer)
-    # dem_layer.dataChanged.emit()
 
     #add a default color ramp shader to the DEM layer
     color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
@@ -186,9 +243,7 @@ def addDEM(DEM_path, group):
     dem_layer.setRenderer(renderer)
     dem_layer.triggerRepaint()
     
-    # Method 5: For vector layers, trigger feature count update
-    # if hasattr(dem_layer, 'updateFeatureCount'):
-    #     dem_layer.updateFeatureCount()
+
 
 
     
@@ -223,10 +278,8 @@ class SUSheet():
         self.title.setText(f"{self.su_info['trench']} • {self.su_info['su']}")
         self.description.setText(self.su_info['description'])
 
-        #manipulate the zoom level of the layout
-        # self.items_dict['Map'].setScale(1000)  # Set the scale of
 
-        print("maps", self.template_map_content_dict)
+
 
         self.maps = {
             "Page 1": {
@@ -249,24 +302,34 @@ class SUSheet():
 
         #TODO: pick the bookmark zoom level for the Trench
 
-        #DEM map
+        #Overview map
+        print("Setting up Overview map item...")
 
         #TODO: turn on trench boundaries
         #TODO: turn on Trench Area contours
-        # self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
-        # self.layers_dict["contour_layer"].setItemVisibilityChecked(False)  # make the contour layer invisible in the layout
-        # self.layers_dict["SU_ShapeFile"].setOpacity(0) 
-        
-        #TODO:zoom to the SU (try using zoom to layer somehow(?)- it seems to calculate the centroid already and can zoom out a bit if needed)
+        self.layers_dict["drone-flight"].setOpacity(0)  # Set the opacity of the DEM layer
+        self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
+        if self.layers_dict["contour_layer"] is not None:
+            self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
+        self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
+    
+
+        #add color to the SU ShapeFile layer
+        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
+
+        #TODO: adjust zoom level using bookmarks or centroid like 'zoom to layer'
+
         #lock the DEM map item
+        self.maps["Page 1"]["Overview"].setLocked(True)  # Lock the DEM map item
+        self.maps["Page 2"]["Overview"].setLocked(True)  # Lock the DEM map item
 
-        #overview map
-        #TODO:zoom adjust
-        #lock the overview map item
 
-        #ortho map
-        #TODO:zoom adjust
-        #lock the ortho map item
+        #Ortho map
+        print("Setting up Ortho map item...")
+
+        self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
+        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
+
 
         #TODO: adjust the legends on the maps
 
@@ -337,11 +400,8 @@ class SUSheet():
             else:
                 pdf_path = self.pdf_path
         
-        print("The layers at this time are:")
-        print(self.layers_dict)
 
-        print("The items in the layout are and their locked values:")
-        print([ (obj["obj"].displayName(), obj["obj"].isLocked()) for obj in list(self.items_dict.values()) if obj["obj"].isLocked()])
+
 
         #export the layout to PDF
         exporter = QgsLayoutExporter(self.layout)
@@ -350,7 +410,7 @@ class SUSheet():
 # QGS_FILE_NAME="TARP_2025_SU_Template_new_test.qgs"
 
 # QGS_FILE_NAME="TARP_SU_Sheets_2025_test.qgs"
-QGS_FILE_NAME="TARP_SU_Sheets_2025_test_updating.qgs"
+QGS_FILE_NAME="TARP_SU_Sheets_2025_test_updating_v2.qgs"
 
 SU = "SU_17001"  # Example SU name, change as needed
 TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
@@ -407,6 +467,11 @@ if len(list_of_gcp_layers) < 1:
 layers_dict["drone-flight"] = list_of_gcp_layers[0].layer()  # Store the GCP layer in the dictionary
 
 
+#get the TARP 2025 Trench Boundaries 6-1-2025
+list_of_boundary_layers = [item for item in root.children() if item.name() == "TARP 2025 Trench Boundaries 6-1-2025"]
+if len(list_of_boundary_layers) < 1:
+    raise ValueError("TARP 2025 Trench Boundaries 6-1-2025 layer not found in the project. Please check the project structure.")
+layers_dict["trench-boundaries"] = list_of_boundary_layers[0].layer()  # Store the trench boundaries layer in the dictionary
 
 trench_folder = root.findGroup(TRENCH)
 
@@ -414,6 +479,15 @@ SU_folder = trench_folder.findGroup(SU)
 if SU_folder is None:
     print(f"Creating folder for {SU} under {TRENCH}...")
     SU_folder = trench_folder.addGroup(SU)  # Add SU folder under trench folder
+
+
+#add the ortho photo of the corresponing job id
+add_ortho_photo(JobID, project, layers_dict)
+
+
+
+
+
 
 
 # Check if the SU Shape layer already exists in the SU folder
