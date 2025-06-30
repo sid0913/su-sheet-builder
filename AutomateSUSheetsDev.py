@@ -49,7 +49,16 @@ Processing.initialize()  # Initialize the Processing framework
 
 #function to set up QGIS file by deleting existing layers and adding a drone flight layer
 def setupQGISFile(project, layers_dict):
-    project.removeAllMapLayers()  # Clear existing layers in the project
+    
+    
+    print("Clear existing project layers...")
+    # Get the list of all layers in the project
+    layers = list(project.mapLayers().values())
+
+    # Remove each layer
+    for layer in layers:
+        project.removeMapLayer(layer)
+
     print("Project cleared. Adding drone flight layer...")
     if not os.path.exists("GCP-Drone-Flight-2025.jpg"):
         raise FileNotFoundError("GCP-Drone-Flight-2025.jpg not found. Please check the file path.")
@@ -59,7 +68,7 @@ def setupQGISFile(project, layers_dict):
     print("project layers after clearing:", [layer.name() for layer in project.mapLayers().values()])
 
 #helper functions
-def addLayer(uri, name, group):
+def addLayer(uri, name):
     """Adds a Map layer to the QGIS project."""
     print(f"Adding layer {name}...")
     
@@ -68,7 +77,6 @@ def addLayer(uri, name, group):
     
     vlayer = QgsVectorLayer(uri, name, "ogr")
     project.addMapLayer(vlayer)
-    # group.insertLayer(0, vlayer)  # Insert the layer at the top of the group
     print("Layer added:", vlayer.name())
     return vlayer
 
@@ -202,11 +210,10 @@ def get_contours(input_raster, SU, interval=0.02):
     print(f"Contours generated successfully and saved to {output_path}")
     return output_path
 
-def addContour(contour_file, group):
-    """Adds contour layer to the specified group in the project.
+def addContour(contour_file):
+    """Adds contour layer in the project.
     Args:
         contour_file (str): Path to the contour shapefile.
-        group (QgsLayerTreeGroup): The group to add the contour layer to.
     Returns:
         QgsVectorLayer: The added contour layer."""
     print(f"Adding contour layer from {contour_file}...")
@@ -217,14 +224,6 @@ def addContour(contour_file, group):
     
     
     
-    # group.insertLayer(0, contour_layer)  # Insert the layer at the top of the group
-
-    #add contour style
-
-    # style = QgsStyle.defaultStyle()
-    # style.readFromQML("contour_style.qml")
-    # contour_layer.renderer().readXML(style.symbol('default_symbol'))
-    
     contour_layer.loadNamedStyle('Styles/contour_style.qml')
     contour_layer.triggerRepaint()
     project.addMapLayer(contour_layer)
@@ -234,11 +233,10 @@ def addContour(contour_file, group):
     print("Contour layer added:", contour_layer.name())
     return contour_layer
 
-def addDEM(DEM_path, group):
-    """Adds a DEM layer to the specified group in the project.
+def addDEM(DEM_path):
+    """Adds a DEM layer to the project.
     Args:
         DEM_path (str): Path to the DEM file.   
-        group (QgsLayerTreeGroup): The group to add the DEM layer to.
     Returns:
         QgsRasterLayer: The added DEM layer."""
     print(f"Adding DEM layer from {DEM_path}...")
@@ -246,12 +244,7 @@ def addDEM(DEM_path, group):
     if not dem_layer.isValid():
         print("Failed to load DEM layer.")
         return
-    
-    
-    # group.insertLayer(0, dem_layer)  # Insert the layer at the top of the group
-    
-    # Set the style for the DEM layer
-    # dem_layer.loadNamedStyle('Styles/DEM_Color_Ramp_Syle.qml')
+
     project.addMapLayer(dem_layer)
 
 
@@ -266,10 +259,6 @@ def addDEM(DEM_path, group):
 
     dem_layer.setRenderer(renderer)
     dem_layer.triggerRepaint()
-    
-
-
-
     
 
     print("DEM layer added:", dem_layer.name())
@@ -331,11 +320,11 @@ class SUSheet():
 
         #TODO: turn on trench boundaries
         #TODO: turn on Trench Area contours
-        # self.layers_dict["drone-flight"].setOpacity(0)  # Set the opacity of the DEM layer
-        # self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
-        # if self.layers_dict["contour_layer"] is not None:
-        #     self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
-        # self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
+        self.layers_dict["drone-flight"].setOpacity(0)  # Set the opacity of the DEM layer
+        self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
+        if self.layers_dict["contour_layer"] is not None:
+            self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
+        self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
     
 
         #add color to the SU ShapeFile layer
@@ -353,12 +342,12 @@ class SUSheet():
         #Ortho map
         print("Setting up Ortho map item...")
 
-        # self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
-        # self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
+        self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
+        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
 
 
-        # lockItem(self.maps["Page 1"]["Ortho"]) # Lock the overview map item, page 1
-        # lockItem(self.maps["Page 3"]["Ortho"])  # Lock the overview map item, page 2
+        lockItem(self.maps["Page 1"]["Ortho"]) # Lock the overview map item, page 1
+        lockItem(self.maps["Page 3"]["Ortho"])  # Lock the overview map item, page 2
 
 
         #TODO: adjust the legends on the maps
@@ -505,13 +494,13 @@ setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing
 # if len(list_of_boundary_layers) < 1:
 #     raise ValueError("TARP 2025 Trench Boundaries 6-1-2025 layer not found in the project. Please check the project structure.")
 # layers_dict["trench-boundaries"] = list_of_boundary_layers[0].layer()  # Store the trench boundaries layer in the dictionary
-root.addGroup(TRENCH)  # Add the trench folder if it doesn't exist
-trench_folder = root.findGroup(TRENCH)
+# root.addGroup(TRENCH)  # Add the trench folder if it doesn't exist
+# trench_folder = root.findGroup(TRENCH)
 
-SU_folder = trench_folder.findGroup(SU)
-if SU_folder is None:
-    print(f"Creating folder for {SU} under {TRENCH}...")
-    SU_folder = trench_folder.addGroup(SU)  # Add SU folder under trench folder
+# SU_folder = trench_folder.findGroup(SU)
+# if SU_folder is None:
+#     print(f"Creating folder for {SU} under {TRENCH}...")
+#     SU_folder = trench_folder.addGroup(SU)  # Add SU folder under trench folder
 
 
 #add the ortho photo of the corresponing job id
@@ -520,13 +509,13 @@ add_ortho_photo(JobID, project, layers_dict)
 
 #add the trench boundaries and architecture 2025 layers
 print("Adding trench boundaries layer...")
-trench_boundaries_layer = addLayer("TARP 2025 Trench Boundaries 6-1-2025.shp", "Trench Boundaries", trench_folder)
+trench_boundaries_layer = addLayer("TARP 2025 Trench Boundaries 6-1-2025.shp", "Trench Boundaries")
 trench_boundaries_layer.loadNamedStyle("Styles/Trench_outline_style.qml")  # Load the style for the trench boundaries layer
 layers_dict["trench-boundaries"] = trench_boundaries_layer  # Store the trench boundaries layer in the dictionary
 
 
 print("Adding architecture 2025 layer...")
-architecture_layer = addLayer("Architecture_2025.shp", "Architecture 2025", trench_folder)
+architecture_layer = addLayer("Architecture_2025.shp", "Architecture 2025")
 architecture_layer.loadNamedStyle("Styles/TARP_Architecture_Colored_Style_2025.qml")  # Load the style for the architecture layer
 layers_dict["architecture"] = architecture_layer  # Store the architecture layer in the dictionary 
 
@@ -539,7 +528,7 @@ layers_dict["architecture"] = architecture_layer  # Store the architecture layer
 # if project.mapLayersByName(SU_ShapeFile_name) is None:
 #     #add the layer to the SU folder
 print("Adding SU shapefile layer...")
-su_shape_layer = addLayer(SU_ShapeFile,SU_ShapeFile_name,SU_folder)
+su_shape_layer = addLayer(SU_ShapeFile,SU_ShapeFile_name)
 layers_dict["SU_ShapeFile"] = su_shape_layer  # Store the layer in the dictionary
 
 
@@ -559,11 +548,11 @@ print("Contour file generated:", contour_file)
 
 
 
-dem_layer = addDEM(SU+"_DEM.tif", SU_folder)
+dem_layer = addDEM(SU+"_DEM.tif")
 layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
 
 #add the contour layer to the SU folder
-contour_layer = addContour(contour_file, SU_folder)
+contour_layer = addContour(contour_file)
 layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionary
 
 #create an SU Sheet
