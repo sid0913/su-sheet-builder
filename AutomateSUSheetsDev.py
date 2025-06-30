@@ -49,10 +49,12 @@ Processing.initialize()  # Initialize the Processing framework
 
 #function to set up QGIS file by deleting existing layers and adding a drone flight layer
 def setupQGISFile(project, layers_dict):
-    project.clear()  # Clear existing layers in the project
+    project.removeAllMapLayers()  # Clear existing layers in the project
     print("Project cleared. Adding drone flight layer...")
-    drone_flight_layer = QgsVectorLayer("GCP-Drone-Flight-2025.shp", "GCP Drone Flight", "ogr")
+    drone_flight_layer = QgsVectorLayer("GCP-Drone-Flight-2025.jpg", "GCP Drone Flight", "ogr")
     layers_dict["drone-flight"] = drone_flight_layer  # Store the drone flight layer in the dictionary
+    project.addMapLayer(drone_flight_layer)  # Add the drone flight layer to the project
+    print("project layers after clearing:", [layer.name() for layer in project.mapLayers().values()])
 
 #helper functions
 def addLayer(uri, name, group):
@@ -486,11 +488,14 @@ print("These are the initial project layers",[item.name() for item in root.child
 
 layers_dict["root"] = root  # Store the root in the dictionary
 
-list_of_gcp_layers = [ item for item in root.children() if item.name() == "GCP-Drone-Flight-2025"]  # Get the root children (top-level groups and layers)
-# check if the GCP-Drone-Flight-2025 layer exists
-if len(list_of_gcp_layers) < 1:
-    raise ValueError("GCP-Drone-Flight-2025 layer not found in the project. Please check the project structure.")
-layers_dict["drone-flight"] = list_of_gcp_layers[0].layer()  # Store the GCP layer in the dictionary
+print("Setting up QGIS file...")
+setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
+
+# list_of_gcp_layers = [ item for item in root.children() if item.name() == "GCP-Drone-Flight-2025"]  # Get the root children (top-level groups and layers)
+# # check if the GCP-Drone-Flight-2025 layer exists
+# if len(list_of_gcp_layers) < 1:
+#     raise ValueError("GCP-Drone-Flight-2025 layer not found in the project. Please check the project structure.")
+# layers_dict["drone-flight"] = list_of_gcp_layers[0].layer()  # Store the GCP layer in the dictionary
 
 
 # #get the TARP 2025 Trench Boundaries 6-1-2025
@@ -498,7 +503,7 @@ layers_dict["drone-flight"] = list_of_gcp_layers[0].layer()  # Store the GCP lay
 # if len(list_of_boundary_layers) < 1:
 #     raise ValueError("TARP 2025 Trench Boundaries 6-1-2025 layer not found in the project. Please check the project structure.")
 # layers_dict["trench-boundaries"] = list_of_boundary_layers[0].layer()  # Store the trench boundaries layer in the dictionary
-
+root.addGroup(TRENCH)  # Add the trench folder if it doesn't exist
 trench_folder = root.findGroup(TRENCH)
 
 SU_folder = trench_folder.findGroup(SU)
