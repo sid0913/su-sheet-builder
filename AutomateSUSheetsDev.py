@@ -50,6 +50,10 @@ Processing.initialize()  # Initialize the Processing framework
 def addLayer(uri, name, group):
     """Adds a Map layer to the QGIS project."""
     print(f"Adding layer {name}...")
+    
+    if not os.path.exists(uri):
+        raise FileNotFoundError(f"Layer file {uri} not found. Please check the file path.")
+    
     vlayer = QgsVectorLayer(uri, name, "ogr")
     project.addMapLayer(vlayer)
     # group.insertLayer(0, vlayer)  # Insert the layer at the top of the group
@@ -111,8 +115,9 @@ def add_ortho_photo(JobID, project, layers_dict):
 
             project.addMapLayer(ortho_layer)
             # Add the ortho photo layer to the layers dictionary
-            layers_dict["ortho_photo"] = QgsRasterLayer(ortho_photo_path, f"Ortho Photo Job {JobID}")
+            layers_dict["ortho_photo"] = ortho_layer
             return
+        
     # If no ortho photo is found, raise an error
     raise FileNotFoundError(f"No ortho photo found for Job {JobID} in the 'Orthos' directory.")
     
@@ -467,11 +472,11 @@ if len(list_of_gcp_layers) < 1:
 layers_dict["drone-flight"] = list_of_gcp_layers[0].layer()  # Store the GCP layer in the dictionary
 
 
-#get the TARP 2025 Trench Boundaries 6-1-2025
-list_of_boundary_layers = [item for item in root.children() if item.name() == "TARP 2025 Trench Boundaries 6-1-2025"]
-if len(list_of_boundary_layers) < 1:
-    raise ValueError("TARP 2025 Trench Boundaries 6-1-2025 layer not found in the project. Please check the project structure.")
-layers_dict["trench-boundaries"] = list_of_boundary_layers[0].layer()  # Store the trench boundaries layer in the dictionary
+# #get the TARP 2025 Trench Boundaries 6-1-2025
+# list_of_boundary_layers = [item for item in root.children() if item.name() == "TARP 2025 Trench Boundaries 6-1-2025"]
+# if len(list_of_boundary_layers) < 1:
+#     raise ValueError("TARP 2025 Trench Boundaries 6-1-2025 layer not found in the project. Please check the project structure.")
+# layers_dict["trench-boundaries"] = list_of_boundary_layers[0].layer()  # Store the trench boundaries layer in the dictionary
 
 trench_folder = root.findGroup(TRENCH)
 
@@ -484,6 +489,18 @@ if SU_folder is None:
 #add the ortho photo of the corresponing job id
 add_ortho_photo(JobID, project, layers_dict)
 
+
+#add the trench boundaries and architecture 2025 layers
+print("Adding trench boundaries layer...")
+trench_boundaries_layer = addLayer("TARP 2025 Trench Boundaries 6-1-2025.shp", "Trench Boundaries", trench_folder)
+trench_boundaries_layer.loadNamedStyle("Styles/Trench_outline_style.qml")  # Load the style for the trench boundaries layer
+layers_dict["trench-boundaries"] = trench_boundaries_layer  # Store the trench boundaries layer in the dictionary
+
+
+print("Adding architecture 2025 layer...")
+architecture_layer = addLayer("Architecture_2025.shp", "Architecture 2025", trench_folder)
+architecture_layer.loadNamedStyle("Styles/TARP_Architecture_Colored_Style_2025.qml")  # Load the style for the architecture layer
+layers_dict["architecture"] = architecture_layer  # Store the architecture layer in the dictionary 
 
 
 
