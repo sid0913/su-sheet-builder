@@ -56,6 +56,30 @@ def addLayer(uri, name, group):
     print("Layer added:", vlayer.name())
     return vlayer
 
+def lockItem(item):
+    """Locks the specified item in the layout."""
+    if item:
+        item.setLocked(True)
+        item.setKeepLayerSet(True)  # Locks the layers in the map item
+        item.setKeepLayerStyles(True)  # Locks the layer styles in the map item
+        # item.setExtent(True)  # Locks the map item's extent
+        
+        print(f"Item {item.displayName()} locked.")
+    else:
+        print("Item is None, cannot lock.")
+
+
+def unlockItem(item):
+    """Unlocks the specified item in the layout."""
+    if item:
+        
+        item.setKeepLayerSet(False)  # Unlocks the layers in the map item
+        item.setKeepLayerStyles(False)  # Unlocks the layer styles in the map item
+        # item.setExtent(False)  # Unlocks the map item's extent
+        item.setLocked(False)
+        print(f"Item {item.displayName()} unlocked.")
+    else:
+        print("Item is None, cannot unlock.")
 
 def clipRaster( input_raster, mask_layer, output_path):
     # Set parameters for the clip operation and save the output (without adding the layer to the project)
@@ -229,9 +253,26 @@ class SUSheet():
         print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
         print("This is the locked value:",self.maps["Page 1"]["Ortho"].isLocked())  # Set the scale of the DEM map
 
-        self.maps["Page 1"]["DEM"].setLocked(False)  # Set the scale of the DEM map
-        self.maps["Page 1"]["Ortho"].setLocked(False)  # Set the scale of the DEM map
-        self.layers_dict["drone-flight"].setOpacity(0)  # Ensure the drone flight layer is visible in the layout
+        self.maps["Page 1"]["DEM"].setLocked(True)  # Set the scale of the DEM map
+        self.maps["Page 1"]["Ortho"].setLocked(True)  # Set the scale of the DEM map
+
+        lockItem(self.maps["Page 1"]["DEM"])
+        lockItem(self.maps["Page 1"]["Ortho"])
+
+        print("After locking, these are the locked values:")
+
+        print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
+        print("This is the locked value:",self.maps["Page 1"]["Ortho"].isLocked())  # Set the scale of the DEM map
+
+        unlockItem(self.maps["Page 1"]["DEM"])  # Set the scale of the DEM map
+        unlockItem(self.maps["Page 1"]["Ortho"])  # Set the scale of
+        
+
+        print("After locking, these are the locked values:")
+        print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
+        print("This is the locked value:",self.maps["Page 1"]["Ortho"].isLocked())  # Set the scale of the DEM map
+
+        # self.layers_dict["drone-flight"].setOpacity(0)  # Ensure the drone flight layer is visible in the layout
         #TODO: turn on trench boundaries
         #TODO: turn on Trench Area contours
         # self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
@@ -318,12 +359,21 @@ class SUSheet():
             else:
                 pdf_path = self.pdf_path
         
+        print("The layers at this time are:")
+        print(self.layers_dict)
+
+        print("The items in the layout are and their locked values:")
+        print([ (obj["obj"].displayName(), obj["obj"].isLocked()) for obj in list(self.items_dict.values()) if obj["obj"].isLocked()])
+
         #export the layout to PDF
         exporter = QgsLayoutExporter(self.layout)
         exporter.exportToPdf(pdf_path, QgsLayoutExporter.PdfExportSettings())
 
 # QGS_FILE_NAME="TARP_2025_SU_Template_new_test.qgs"
-QGS_FILE_NAME="TARP_SU_Sheets_2025_test.qgs"
+
+# QGS_FILE_NAME="TARP_SU_Sheets_2025_test.qgs"
+QGS_FILE_NAME="TARP_SU_Sheets_2025_test_updating.qgs"
+
 SU = "SU_17001"  # Example SU name, change as needed
 TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
 JobID = "707"
@@ -343,7 +393,7 @@ SU_data = {
     "SU": SU,
     "TRENCH": TRENCH,
     "JobID": JobID,
-    "description": "SU Description",  # Add a description for the SU
+    "description": "SU 17001 description specific",  # Add a description for the SU
     "SU_ShapeFile_name": SU_ShapeFile_name,
     "SU_ShapeFile": SU_ShapeFile,
     "DEM_path": DEM_path,
@@ -352,6 +402,8 @@ SU_data = {
 # Get the project instance
 project = QgsProject.instance()
 
+if not os.path.exists(QGS_FILE_NAME):
+    raise FileNotFoundError(f"Project file {QGS_FILE_NAME} not found. Please check the file path.")
 
 print("Loading project...")
 project.read(QGS_FILE_NAME)  # Load the project file
@@ -367,6 +419,8 @@ print("project",project.fileName())
 #create SU folder if it doesn't exist
 root = project.layerTreeRoot()
 print("These are the initial project layers",[item.name() for item in root.children()])
+
+layers_dict["root"] = root  # Store the root in the dictionary
 
 list_of_gcp_layers = [ item for item in root.children() if item.name() == "GCP-Drone-Flight-2025"]  # Get the root children (top-level groups and layers)
 # check if the GCP-Drone-Flight-2025 layer exists
@@ -416,7 +470,7 @@ contour_layer = addContour(contour_file, SU_folder)
 layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionary
 
 #create an SU Sheet
-su_sheet = SUSheet("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, "SU Description", TEMPLATE_PDF_PATH, layers_dict)
+su_sheet = SUSheet("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, layers_dict)
 
 #manipulate the layout items
 print("Manipulating layout items...")
