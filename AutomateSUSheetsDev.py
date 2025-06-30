@@ -46,6 +46,14 @@ print("Intializing QGIS Application...")
 qgs.initQgis()
 Processing.initialize()  # Initialize the Processing framework
 
+
+#function to set up QGIS file by deleting existing layers and adding a drone flight layer
+def setupQGISFile(project, layers_dict):
+    project.clear()  # Clear existing layers in the project
+    print("Project cleared. Adding drone flight layer...")
+    drone_flight_layer = QgsVectorLayer("GCP-Drone-Flight-2025.shp", "GCP Drone Flight", "ogr")
+    layers_dict["drone-flight"] = drone_flight_layer  # Store the drone flight layer in the dictionary
+
 #helper functions
 def addLayer(uri, name, group):
     """Adds a Map layer to the QGIS project."""
@@ -166,8 +174,15 @@ def clipRaster( input_raster, mask_layer, output_path):
 def get_contours(input_raster, SU, interval=0.02):
     """Generates contours from a raster layer."""
 
+    
+
     print(f"Generating contours for {SU} with interval {interval*100} cm...")
     output_path = f"{SU}_{int(interval*100)}cm.shp"  # Output shapefile for contours
+
+    if os.path.exists(output_path):
+        print(f"Contour file {output_path} already exists.")
+        return output_path
+
     contour_params = {
         'INPUT': input_raster,
         'BAND': 1,  # Assuming the first band is the one to contour
@@ -312,15 +327,17 @@ class SUSheet():
 
         #TODO: turn on trench boundaries
         #TODO: turn on Trench Area contours
-        self.layers_dict["drone-flight"].setOpacity(0)  # Set the opacity of the DEM layer
-        self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
-        if self.layers_dict["contour_layer"] is not None:
-            self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
-        self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
+        # self.layers_dict["drone-flight"].setOpacity(0)  # Set the opacity of the DEM layer
+        # self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
+        # if self.layers_dict["contour_layer"] is not None:
+        #     self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
+        # self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
     
 
         #add color to the SU ShapeFile layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
+
+        self.maps["Page 1"]["Overview"].setLayers([self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"]])  # Set the layers for the overview map item, page 1
 
         #TODO: adjust zoom level using bookmarks or centroid like 'zoom to layer'
 
@@ -332,12 +349,12 @@ class SUSheet():
         #Ortho map
         print("Setting up Ortho map item...")
 
-        self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
-        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
+        # self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
+        # self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
 
 
-        lockItem(self.maps["Page 1"]["Ortho"]) # Lock the overview map item, page 1
-        lockItem(self.maps["Page 3"]["Ortho"])  # Lock the overview map item, page 2
+        # lockItem(self.maps["Page 1"]["Ortho"]) # Lock the overview map item, page 1
+        # lockItem(self.maps["Page 3"]["Ortho"])  # Lock the overview map item, page 2
 
 
         #TODO: adjust the legends on the maps
@@ -429,7 +446,7 @@ SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example sha
 DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
 CONTOUR_INTERVAL = 0.02
 TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
-
+SU_SHEET_TRENCH_TEMPLATE_PATH = "SU_Layout_Templates/SU_Template_17000.qpt"
 
 
 layers_dict = {}
@@ -543,7 +560,7 @@ contour_layer = addContour(contour_file, SU_folder)
 layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionary
 
 #create an SU Sheet
-su_sheet = SUSheet("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, layers_dict)
+su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, layers_dict)
 
 #manipulate the layout items
 print("Manipulating layout items...")
