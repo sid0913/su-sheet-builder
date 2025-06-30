@@ -51,7 +51,7 @@ Processing.initialize()  # Initialize the Processing framework
 def setupQGISFile(project, layers_dict):
     project.removeAllMapLayers()  # Clear existing layers in the project
     print("Project cleared. Adding drone flight layer...")
-    drone_flight_layer = QgsVectorLayer("GCP-Drone-Flight-2025.jpg", "GCP Drone Flight", "ogr")
+    drone_flight_layer = QgsVectorLayer("GCP-Drone-Flight-2025.jpg", "GCP-Drone-Flight-2025", "ogr")
     layers_dict["drone-flight"] = drone_flight_layer  # Store the drone flight layer in the dictionary
     project.addMapLayer(drone_flight_layer)  # Add the drone flight layer to the project
     print("project layers after clearing:", [layer.name() for layer in project.mapLayers().values()])
