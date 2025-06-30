@@ -250,29 +250,7 @@ class SUSheet():
         #TODO: pick the bookmark zoom level for the Trench
 
         #DEM map
-        print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
-        print("This is the locked value:",self.maps["Page 1"]["Ortho"].isLocked())  # Set the scale of the DEM map
 
-        self.maps["Page 1"]["DEM"].setLocked(True)  # Set the scale of the DEM map
-        self.maps["Page 1"]["Ortho"].setLocked(True)  # Set the scale of the DEM map
-
-        lockItem(self.maps["Page 1"]["DEM"])
-        lockItem(self.maps["Page 1"]["Ortho"])
-
-        print("After locking, these are the locked values:")
-
-        print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
-        print("This is the locked value:",self.maps["Page 1"]["Ortho"].isLocked())  # Set the scale of the DEM map
-
-        unlockItem(self.maps["Page 1"]["DEM"])  # Set the scale of the DEM map
-        unlockItem(self.maps["Page 1"]["Ortho"])  # Set the scale of
-        
-
-        print("After locking, these are the locked values:")
-        print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
-        print("This is the locked value:",self.maps["Page 1"]["Ortho"].isLocked())  # Set the scale of the DEM map
-
-        # self.layers_dict["drone-flight"].setOpacity(0)  # Ensure the drone flight layer is visible in the layout
         #TODO: turn on trench boundaries
         #TODO: turn on Trench Area contours
         # self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
