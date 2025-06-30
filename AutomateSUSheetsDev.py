@@ -54,6 +54,7 @@ def addLayer(uri, name, group):
     project.addMapLayer(vlayer)
     # group.insertLayer(0, vlayer)  # Insert the layer at the top of the group
     print("Layer added:", vlayer.name())
+    return vlayer
 
 
 def clipRaster( input_raster, mask_layer, output_path):
@@ -92,7 +93,12 @@ def get_contours(input_raster, SU, interval=0.02):
     return output_path
 
 def addContour(contour_file, group):
-    """Adds contour layer to the specified group in the project."""
+    """Adds contour layer to the specified group in the project.
+    Args:
+        contour_file (str): Path to the contour shapefile.
+        group (QgsLayerTreeGroup): The group to add the contour layer to.
+    Returns:
+        QgsVectorLayer: The added contour layer."""
     print(f"Adding contour layer from {contour_file}...")
     contour_layer = QgsVectorLayer(contour_file, "Contours", "ogr")
     if not contour_layer.isValid():
@@ -116,9 +122,15 @@ def addContour(contour_file, group):
 
 
     print("Contour layer added:", contour_layer.name())
+    return contour_layer
 
 def addDEM(DEM_path, group):
-    """Adds a DEM layer to the specified group in the project."""
+    """Adds a DEM layer to the specified group in the project.
+    Args:
+        DEM_path (str): Path to the DEM file.   
+        group (QgsLayerTreeGroup): The group to add the DEM layer to.
+    Returns:
+        QgsRasterLayer: The added DEM layer."""
     print(f"Adding DEM layer from {DEM_path}...")
     dem_layer = QgsRasterLayer(DEM_path, "DEM Layer")
     if not dem_layer.isValid():
@@ -158,21 +170,81 @@ def addDEM(DEM_path, group):
     
 
     print("DEM layer added:", dem_layer.name())
+    return dem_layer
 
 
 
 class SUSheet():
-    def __init__(self, template_path, su, trench, description, pdf_path):
+    def __init__(self, template_path:str, su:str, trench:str, description:str, pdf_path:str, layers_dict:dict):
         
         #initialize the SU information
-        self.su = su
-        self.trench = trench
-        self.description = description
+
         self.pdf_path = pdf_path
+        self.su_info = {
+            "su": su,  # SU name,
+            "trench": trench,  # Trench name
+            "description": description,  # Description of the SU,
+        }
+
+        self.layers_dict = layers_dict  # Dictionary of layers to be added to the layout
 
 
         #load the layout template
-        self.doc, self.layout, self.items = self.load_layout_template(template_path)
+        self.doc, self.layout, self.items_dict, self.template_map_content_dict = self.load_layout_template(template_path)
+
+
+        self.title = self.items_dict['Trench 17000 • SU 17001']["obj"]
+        self.description = self.items_dict['Description:']["obj"]
+
+        self.title.setText(f"{self.su_info['trench']} • {self.su_info['su']}")
+        self.description.setText(self.su_info['description'])
+
+        #manipulate the zoom level of the layout
+        # self.items_dict['Map'].setScale(1000)  # Set the scale of
+
+        print("maps", self.template_map_content_dict)
+
+        self.maps = {
+            "Page 1": {
+                "DEM": self.template_map_content_dict['DEM Page 1'],
+                "Ortho": self.template_map_content_dict['Ortho Page 1'],
+                "Overview": self.template_map_content_dict['Overview Page 1'],
+            },
+            "Page 2": {
+                "Overview": self.template_map_content_dict['Overview Page 2'],
+            },
+            "Page 3": {
+                "Ortho": self.template_map_content_dict['Ortho Map Page 3'],
+            },
+            "Page 4": {
+                "DEM": self.template_map_content_dict['DEM Page 4'],
+            }
+        }
+
+        #TODO: pick the bookmark zoom level for the Trench
+
+        #DEM map
+        # print("This is the locked value:",self.maps["Page 1"]["DEM"].isLocked())  # Set the scale of the DEM map
+        self.layers_dict["drone-flight"].setOpacity(0)  # Ensure the drone flight layer is visible in the layout
+        #TODO: turn on trench boundaries
+        #TODO: turn on Trench Area contours
+        self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
+        self.layers_dict["contour_layer"].setVisibility(False)  # make the contour layer invisible in the layout
+        self.layers_dict["SU_ShapeFile"].setOpacity(0) 
+        
+        #TODO:zoom to the SU (try using zoom to layer somehow(?)- it seems to calculate the centroid already and can zoom out a bit if needed)
+        #lock the DEM map item
+
+        #overview map
+        #TODO:zoom adjust
+        #lock the overview map item
+
+        #ortho map
+        #TODO:zoom adjust
+        #lock the ortho map item
+
+        #TODO: adjust the legends on the maps
+
 
     
     
@@ -207,11 +279,15 @@ class SUSheet():
 
 
         print("Setting up layout properties...")
-        print([item.displayName() for item in items])
 
+        # print([( item.uuid(), item.displayName(), type(item).__name__) for item in items if type(item).__name__ == "QgsLayoutItemMap"])
+        maps = [(item.displayName(), item) for item in items if type(item).__name__ == "QgsLayoutItemMap"]
+        items = [( item.displayName(), {"id":item.uuid(), "obj":item, "type": type(item).__name__}) for item in items]
+        items_dict = dict(items)  # Convert to a dictionary for easier access
+        maps_dict = dict(maps)  # Convert to a dictionary for easier access
         
         # return layout properties
-        return doc, layout, items
+        return doc, layout, items_dict, maps_dict
     
     
     def generatePDF(self, pdf_path):
@@ -250,10 +326,15 @@ DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
 CONTOUR_INTERVAL = 0.02
 TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
 
+layers_dict = {}
+
+
+
 SU_data = {
     "SU": SU,
     "TRENCH": TRENCH,
     "JobID": JobID,
+    "description": "SU Description",  # Add a description for the SU
     "SU_ShapeFile_name": SU_ShapeFile_name,
     "SU_ShapeFile": SU_ShapeFile,
     "DEM_path": DEM_path,
@@ -276,6 +357,15 @@ print("project",project.fileName())
 #adding it to the right trench and SU folder
 #create SU folder if it doesn't exist
 root = project.layerTreeRoot()
+print("These are the initial project layers",[item.name() for item in root.children()])
+list_of_gcp_layers = [ item for item in root.children() if item.name() == "GCP-Drone-Flight-2025"]  # Get the root children (top-level groups and layers)
+# check if the GCP-Drone-Flight-2025 layer exists
+if len(list_of_gcp_layers) < 1:
+    raise ValueError("GCP-Drone-Flight-2025 layer not found in the project. Please check the project structure.")
+layers_dict["drone-flight"] = list_of_gcp_layers[0].layer()  # Store the GCP layer in the dictionary
+
+
+
 trench_folder = root.findGroup(TRENCH)
 
 SU_folder = trench_folder.findGroup(SU)
@@ -288,8 +378,8 @@ if SU_folder is None:
 # if project.mapLayersByName(SU_ShapeFile_name) is None:
 #     #add the layer to the SU folder
 print("Adding SU shapefile layer...")
-addLayer(SU_ShapeFile,SU_ShapeFile_name,SU_folder)
-
+su_shape_layer = addLayer(SU_ShapeFile,SU_ShapeFile_name,SU_folder)
+layers_dict["SU_ShapeFile"] = su_shape_layer  # Store the layer in the dictionary
 
 
 
@@ -305,14 +395,24 @@ clipRaster(
 #get contours from the clipped DEM
 contour_file = get_contours(SU+"_DEM.tif", SU, interval=CONTOUR_INTERVAL)
 print("Contour file generated:", contour_file)
-addContour(contour_file, SU_folder)
 
 
-addDEM(SU+"_DEM.tif", SU_folder)
+
+dem_layer = addDEM(SU+"_DEM.tif", SU_folder)
+layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
+
+#add the contour layer to the SU folder
+contour_layer = addContour(contour_file, SU_folder)
+layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionary
 
 #create an SU Sheet
-su_sheet = SUSheet("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, "SU Description", TEMPLATE_PDF_PATH)
+su_sheet = SUSheet("SU_Layout_Templates/SU_Template_17000.qpt", SU, TRENCH, "SU Description", TEMPLATE_PDF_PATH, layers_dict)
 
+#manipulate the layout items
+print("Manipulating layout items...")
+
+
+#generate the SU Sheet PDF
 su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
 
 
