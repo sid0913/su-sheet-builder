@@ -170,7 +170,7 @@ def lockItem(item):
 
 def zoomToLayerWithBufferAndScalebar(item: QgsLayoutItemMap, layer: QgsMapLayer,
                                      scalebar: QgsLayoutItemScaleBar,
-                                     buffer_ratio: float = 1,
+                                     buffer_ratio: float = 0.2,
                                      scalebar_fraction: float = 0.5):
     """
     Zooms to a layer with buffer and sets the scale bar to occupy ~1/4 of map width (in mm).
@@ -385,8 +385,8 @@ class SUSheet():
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
 
         #zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overivew Page 1']["obj"], buffer_ratio=2)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=2)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overivew Page 1']["obj"], buffer_ratio=2.5)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=2.5)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
 
         active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
