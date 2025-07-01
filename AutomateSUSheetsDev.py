@@ -211,35 +211,14 @@ def zoomToLayerWithBufferAndScalebar(item: QgsLayoutItemMap, layer: QgsMapLayer,
     item.setExtent(new_extent)
     item.refresh()
 
-    # Step 2: Adjust scalebar line length to ~1/4 map width (in map units)
+    # Set scalebar width to 1/4 of map item width
     if scalebar:
-        map_scale = item.scale()  # direct call without mapSettings()
         desired_width_mm = item_width_mm * scalebar_fraction
-
-        # Convert desired mm to map units using scale: 1mm = map_scale / 1000 map units (assuming meters)
-        desired_mu_length = desired_width_mm * (map_scale / 1000.0)
-
-        # Round to a "nice" scale bar length: 1, 2, or 5 × 10^n
-        nice_steps = [1, 2, 5]
-        magnitude = 10 ** int(len(str(int(desired_mu_length))) - 1)
-        base = desired_mu_length / magnitude
-        closest_step = min(nice_steps, key=lambda x: abs(x - base))
-        final_line_length = closest_step * magnitude
-
-        # Apply settings to scalebar
         scalebar.setLinkedMap(item)
-        scalebar.setUnits(item.layout().referenceMap().crs().mapUnits())
-        scalebar.setUnitLabel('m')
-        scalebar.setStyle('Single Box')
-        scalebar.setNumberOfSegments(2)
-        scalebar.setNumberOfSegmentsLeft(0)
-        scalebar.setLineWidth(0.3)
-        scalebar.setHeight(2.0)
-        # scalebar.setFont(QFont("Arial", 8))
-        scalebar.setLineWidth(final_line_length)
+        scalebar.setMinimumBarWidth(desired_width_mm)
         scalebar.update()
 
-        print(f"Scale bar adjusted to {final_line_length} {scalebar.unitLabel()}.")
+        print(f"Scalebar width set to {desired_width_mm:.2f} mm.")
 
     print(f"Map item '{item.displayName()}' zoomed to layer '{layer.name()}' with {int(buffer_ratio * 100)}% buffer.")
 
@@ -406,8 +385,8 @@ class SUSheet():
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
 
         #zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overivew Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overivew Page 1']["obj"], buffer_ratio=2)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=2)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
 
         active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
