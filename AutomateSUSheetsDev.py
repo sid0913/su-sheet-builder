@@ -28,7 +28,7 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsRasterRange, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from qgis.core import QgsApplication, QgsRasterRange, QgsRectangle, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
 from PyQt5.QtXml import QDomDocument
 import processing
 from processing.core.Processing import Processing
@@ -156,8 +156,58 @@ def lockItem(item):
     else:
         print("Item is None, cannot lock.")
 
+# def zoomToLayer(item, layer):
+#     """Zooms the specified item to the extent of the given layer."""
+
+#     if item and layer:
+#         #zoom while keeping the layout item size the same 
+#         item.setExtent(layer.extent())  # Set the extent of the overview map item to the layer's extent
+#         print(f"Item {item.displayName()} zoomed to layer {layer.name()}.")
+#     else:
+#         print("Item or layer is None, cannot zoom.")
 
 
+def zoomToLayer(item: QgsLayoutItemMap, layer: QgsMapLayer, buffer_ratio: float = 0.5):
+    """
+    Zooms the layout map item to the layer extent with optional zoom-out (buffer),
+    without resizing the map item itself.
+
+    :param buffer_ratio: Fraction of extra space around the layer extent (e.g., 0.1 for 10% zoom out)
+    """
+    if item is None or layer is None:
+        print("Item or layer is None, cannot zoom.")
+        return
+
+    layer_extent: QgsRectangle = layer.extent()
+
+    # Apply buffer (zoom out)
+    buffered_extent = layer_extent.buffered(layer_extent.width() * buffer_ratio)
+
+    # Get layout map item size in mm
+    item_width_mm = item.rect().width()
+    item_height_mm = item.rect().height()
+
+    # Calculate required map unit per mm for both dimensions
+    mu_per_mm_x = buffered_extent.width() / item_width_mm
+    mu_per_mm_y = buffered_extent.height() / item_height_mm
+
+    mu_per_mm = max(mu_per_mm_x, mu_per_mm_y)
+
+    # Recalculate extent centered on buffered extent
+    center = buffered_extent.center()
+    new_width = item_width_mm * mu_per_mm
+    new_height = item_height_mm * mu_per_mm
+
+    new_extent = QgsRectangle(
+        center.x() - new_width / 2,
+        center.y() - new_height / 2,
+        center.x() + new_width / 2,
+        center.y() + new_height / 2
+    )
+
+    item.setExtent(new_extent)
+    item.refresh()
+    print(f"Item '{item.displayName()}' zoomed to layer '{layer.name()}' with {int(buffer_ratio * 100)}% buffer.")
 
 def clipRaster( input_raster, mask_layer, output_path):
     # Set parameters for the clip operation and save the output (without adding the layer to the project)
@@ -320,6 +370,8 @@ class SUSheet():
 
         #add color to the SU ShapeFile layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
+
+        zoomToLayer(self.maps["Page 1"]["Overview"], self.layers_dict["SU_ShapeFile"])
 
 
         active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
