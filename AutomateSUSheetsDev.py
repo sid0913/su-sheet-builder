@@ -28,8 +28,9 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsRasterRange, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from qgis.core import QgsApplication, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
 from PyQt5.QtXml import QDomDocument
+from PyQt5.QtGui import QFont
 import processing
 from processing.core.Processing import Processing
 # Supply path to qgis install location
@@ -156,8 +157,70 @@ def lockItem(item):
     else:
         print("Item is None, cannot lock.")
 
+# def zoomToLayer(item, layer):
+#     """Zooms the specified item to the extent of the given layer."""
+
+#     if item and layer:
+#         #zoom while keeping the layout item size the same 
+#         item.setExtent(layer.extent())  # Set the extent of the overview map item to the layer's extent
+#         print(f"Item {item.displayName()} zoomed to layer {layer.name()}.")
+#     else:
+#         print("Item or layer is None, cannot zoom.")
 
 
+def zoomToLayerWithBufferAndScalebar(item: QgsLayoutItemMap, layer: QgsMapLayer,
+                                     scalebar: QgsLayoutItemScaleBar,
+                                     buffer_ratio: float = 1,
+                                     scalebar_fraction: float = 0.5):
+    """
+    Zooms to a layer with buffer and sets the scale bar to occupy ~1/4 of map width (in mm).
+
+    :param item: QgsLayoutItemMap
+    :param layer: QgsMapLayer
+    :param scalebar: QgsLayoutItemScaleBar
+    :param buffer_ratio: Zoom-out buffer as fraction of layer width (e.g., 0.1 = 10%)
+    :param scalebar_fraction: Desired visual width of scalebar as fraction of map item width (e.g., 0.25 = 1/4th)
+    """
+
+    if not item or not layer:
+        print("Item or layer is None, cannot zoom.")
+        return
+
+    # Step 1: Zoom to buffered layer extent
+    layer_extent = layer.extent()
+    buffered_extent = layer_extent.buffered(layer_extent.width() * buffer_ratio)
+
+    item_width_mm = item.rect().width()
+    item_height_mm = item.rect().height()
+
+    mu_per_mm_x = buffered_extent.width() / item_width_mm
+    mu_per_mm_y = buffered_extent.height() / item_height_mm
+    mu_per_mm = max(mu_per_mm_x, mu_per_mm_y)
+
+    center = buffered_extent.center()
+    new_width = item_width_mm * mu_per_mm
+    new_height = item_height_mm * mu_per_mm
+
+    new_extent = QgsRectangle(
+        center.x() - new_width / 2,
+        center.y() - new_height / 2,
+        center.x() + new_width / 2,
+        center.y() + new_height / 2
+    )
+
+    item.setExtent(new_extent)
+    item.refresh()
+
+    # Set scalebar width to 1/4 of map item width
+    if scalebar:
+        desired_width_mm = item_width_mm * scalebar_fraction
+        scalebar.setLinkedMap(item)
+        scalebar.setMinimumBarWidth(desired_width_mm)
+        scalebar.update()
+
+        print(f"Scalebar width set to {desired_width_mm:.2f} mm.")
+
+    print(f"Map item '{item.displayName()}' zoomed to layer '{layer.name()}' with {int(buffer_ratio * 100)}% buffer.")
 
 def clipRaster( input_raster, mask_layer, output_path):
     # Set parameters for the clip operation and save the output (without adding the layer to the project)
@@ -274,6 +337,7 @@ class SUSheet():
 
         #load the layout template
         self.doc, self.layout, self.items_dict, self.template_map_content_dict = self.load_layout_template(template_path)
+        print("the items_dict is", self.items_dict.keys())
 
 
         self.title = self.items_dict['Trench 17000 • SU 17001']["obj"]
@@ -313,13 +377,16 @@ class SUSheet():
         #TODO: turn on Trench Area contours
         self.layers_dict["drone-flight"].setOpacity(0)  # Set the opacity of the DEM layer
         self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
-        if self.layers_dict["contour_layer"] is not None:
-            self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
+        self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
         self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
     
 
         #add color to the SU ShapeFile layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
+
+        #zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overivew Page 1']["obj"], buffer_ratio=2)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=2)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
 
         active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
@@ -352,6 +419,9 @@ class SUSheet():
         self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
 
+        #zoom the ortho map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Ortho"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 3"]["Ortho"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 3']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
         active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["ortho_photo"]]  # List of active layers for the overview map item
         self.maps["Page 1"]["Ortho"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
@@ -366,14 +436,17 @@ class SUSheet():
         print("Setting up DEM map item...")
         self.layers_dict["drone-flight"].setOpacity(1)
         self.layers_dict["dem_layer"].setOpacity(1)
-        if self.layers_dict["contour_layer"] is not None:
-            self.layers_dict["contour_layer"].setOpacity(1)  # make the contour layer invisible in the layout
-        else:
-            raise ValueError("Contour layer is None. Please check the contour generation step.")
+        self.layers_dict["contour_layer"].setOpacity(1)  # Set the opacity of the contour layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_black_outline.qml")  # Load the style for the SU ShapeFile layer
         self.layers_dict["ortho_photo"].setOpacity(0)
+        
 
-        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["ortho_photo"]]  # List of active layers for the overview map item
+        #zoom the DEM map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar DEM Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 4"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+
+        active_layers = [self.layers_dict["contour_layer"], self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["drone-flight"]]  # List of active layers for the overview map item
+        print("active layers for the DEM map item:", [layer.name() for layer in active_layers])
         self.maps["Page 1"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         self.maps["Page 4"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         #lock DEM map items
