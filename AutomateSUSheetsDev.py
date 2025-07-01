@@ -279,8 +279,8 @@ class SUSheet():
         self.title = self.items_dict['Trench 17000 • SU 17001']["obj"]
         self.description = self.items_dict['Description:']["obj"]
 
-        self.title.setText(f"{self.su_info['trench']} • {self.su_info['su']}")
-        self.description.setText(self.su_info['description'])
+        self.title.setText(f"{self.su_info['trench']} • {self.su_info['su'].replace("_", " ")}") # Replace underscores with spaces in the title
+        self.description.setText(self.su_info['description']) 
 
 
 
