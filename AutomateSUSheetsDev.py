@@ -146,27 +146,18 @@ def add_ortho_photo(JobID, project, layers_dict):
 def lockItem(item):
     """Locks the specified item in the layout."""
     if item:
-        item.setLocked(True)
-        item.setKeepLayerSet(True)  # Locks the layers in the map item
-        item.setKeepLayerStyles(True)  # Locks the layer styles in the map item
-        # item.setExtent(True)  # Locks the map item's extent
+        #item.setLocked would have worked if we had figured out how to get the QgsLayoutItemMap object to uncheck/be invisible. Since we are using opacity, we use the following method
+
+        item.setKeepLayerStyles(True)  # Keep the layer styles for the overview map item, page 1
+        item.storeCurrentLayerStyles()  # Store the current layer set for the overview map item, page 1
+        item.setFollowVisibilityPreset(False) #disable updates from project state
         
         print(f"Item {item.displayName()} locked.")
     else:
         print("Item is None, cannot lock.")
 
 
-def unlockItem(item):
-    """Unlocks the specified item in the layout."""
-    if item:
-        
-        item.setKeepLayerSet(False)  # Unlocks the layers in the map item
-        item.setKeepLayerStyles(False)  # Unlocks the layer styles in the map item
-        # item.setExtent(False)  # Unlocks the map item's extent
-        item.setLocked(False)
-        print(f"Item {item.displayName()} unlocked.")
-    else:
-        print("Item is None, cannot unlock.")
+
 
 def clipRaster( input_raster, mask_layer, output_path):
     # Set parameters for the clip operation and save the output (without adding the layer to the project)
@@ -330,11 +321,27 @@ class SUSheet():
         #add color to the SU ShapeFile layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
 
-        self.maps["Page 1"]["Overview"].setLayers([self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"]])  # Set the layers for the overview map item, page 1
 
-        #TODO: adjust zoom level using bookmarks or centroid like 'zoom to layer'
+        active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
+        self.maps["Page 1"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
+        self.maps["Page 2"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
+        # self.maps["Page 1"]["Overview"].setKeepLayerSet(True)
+        # self.maps["Page 1"]["Overview"].storeCurrentLayerStyles()
+        # #it is not locking still to make sure it locks
+        # self.maps["Page 1"]["Overview"].setExtent(self.layers_dict["SU_ShapeFile"].extent())
+        # self.maps["Page 1"]["Overview"].setFrameEnabled(False)  # Disable the frame for the overview map item, page 1
+        # self.maps["Page 1"]["Overview"].setKeepLayerSet(True)  # Keep the layer set for the overview map item, page 1
+        # #TODO: adjust zoom level using bookmarks or centroid like 'zoom to layer'
 
-        #lock the DEM map item
+
+
+
+
+        # Optional (older versions): freeze the rendering so the image is cached
+        # self.maps["Page 1"]["Overview"].setMapCanvas(None)
+
+
+        #lock the Overview map items
         lockItem(self.maps["Page 1"]["Overview"]) # Lock the overview map item, page 1
         lockItem(self.maps["Page 2"]["Overview"])  # Lock the overview map item, page 2
 
@@ -346,9 +353,32 @@ class SUSheet():
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
 
 
+        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["ortho_photo"]]  # List of active layers for the overview map item
+        self.maps["Page 1"]["Ortho"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
+        self.maps["Page 3"]["Ortho"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
+
+        #lock the ortho maps
         lockItem(self.maps["Page 1"]["Ortho"]) # Lock the overview map item, page 1
         lockItem(self.maps["Page 3"]["Ortho"])  # Lock the overview map item, page 2
 
+
+        #DEM map
+        print("Setting up DEM map item...")
+        self.layers_dict["drone-flight"].setOpacity(1)
+        self.layers_dict["dem_layer"].setOpacity(1)
+        if self.layers_dict["contour_layer"] is not None:
+            self.layers_dict["contour_layer"].setOpacity(1)  # make the contour layer invisible in the layout
+        else:
+            raise ValueError("Contour layer is None. Please check the contour generation step.")
+        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_black_outline.qml")  # Load the style for the SU ShapeFile layer
+        self.layers_dict["ortho_photo"].setOpacity(0)
+
+        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["ortho_photo"]]  # List of active layers for the overview map item
+        self.maps["Page 1"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
+        self.maps["Page 4"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
+        #lock DEM map items
+        lockItem(self.maps["Page 1"]["DEM"])  # Lock the overview map item, page 2
+        lockItem(self.maps["Page 4"]["DEM"])  # Lock the DEM map item, page 1
 
         #TODO: adjust the legends on the maps
 
