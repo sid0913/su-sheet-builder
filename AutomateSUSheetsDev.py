@@ -28,7 +28,7 @@ sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins
 
 
 import os
-from qgis.core import QgsApplication, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from qgis.core import QgsApplication, QgsRasterBandStats, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
 from PyQt5.QtXml import QDomDocument
 from PyQt5.QtGui import QFont
 import processing
@@ -303,6 +303,19 @@ def addDEM(DEM_path):
     #this has the top 3D volume-ish structure
     dem_lower_layer = QgsRasterLayer(DEM_path, "DEM Lower Layer")
 
+    provider = dem_layer.dataProvider()
+    
+    # Get band statistics (band 1 for single-band DEM)
+    stats = provider.bandStatistics(1, QgsRasterBandStats.All)
+    
+    min_elevation = round(stats.minimumValue, 2)
+    max_elevation = round(stats.maximumValue, 2)
+
+    elevation_stats = {
+        "min_elevation": min_elevation,
+        "max_elevation": max_elevation
+    }
+
     
     if not dem_layer.isValid():
         print("Failed to load DEM layer.")
@@ -329,7 +342,7 @@ def addDEM(DEM_path):
     
 
     print("DEM layer added:", dem_layer.name())
-    return dem_layer, dem_lower_layer
+    return dem_layer, dem_lower_layer, elevation_stats
 
 #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
 #prevents print statements from printing to the console
@@ -343,7 +356,7 @@ class HiddenPrints:
         sys.stdout = self._original_stdout
 
 class SUSheet():
-    def __init__(self, template_path:str, su:str, trench:str, description:str, pdf_path:str, layers_dict:dict):
+    def __init__(self, template_path:str, su:str, trench:str, description:str, pdf_path:str, elevation_stats, layers_dict:dict):
         
         #initialize the SU information
 
@@ -356,10 +369,13 @@ class SUSheet():
 
         self.layers_dict = layers_dict  # Dictionary of layers to be added to the layout
 
+        self.elevation_stats = elevation_stats  # Elevation statistics for the SU
+
 
         #load the layout template
         self.doc, self.layout, self.items_dict, self.template_map_content_dict = self.load_layout_template(template_path)
         print("the items_dict is", self.items_dict.keys())
+        # print("the items_dict is", [(self.items_dict[key]["obj"].displayName(), self.items_dict[key]["obj"]) for key in self.items_dict.keys()])
 
 
         self.title = self.items_dict['Trench 17000 • SU 17001']["obj"]
@@ -414,20 +430,7 @@ class SUSheet():
         active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
         self.maps["Page 1"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         self.maps["Page 2"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
-        # self.maps["Page 1"]["Overview"].setKeepLayerSet(True)
-        # self.maps["Page 1"]["Overview"].storeCurrentLayerStyles()
-        # #it is not locking still to make sure it locks
-        # self.maps["Page 1"]["Overview"].setExtent(self.layers_dict["SU_ShapeFile"].extent())
-        # self.maps["Page 1"]["Overview"].setFrameEnabled(False)  # Disable the frame for the overview map item, page 1
-        # self.maps["Page 1"]["Overview"].setKeepLayerSet(True)  # Keep the layer set for the overview map item, page 1
-        # #TODO: adjust zoom level using bookmarks or centroid like 'zoom to layer'
 
-
-
-
-
-        # Optional (older versions): freeze the rendering so the image is cached
-        # self.maps["Page 1"]["Overview"].setMapCanvas(None)
 
 
         #lock the Overview map items
@@ -476,7 +479,16 @@ class SUSheet():
         lockItem(self.maps["Page 1"]["DEM"])  # Lock the overview map item, page 2
         lockItem(self.maps["Page 4"]["DEM"])  # Lock the DEM map item, page 1
 
-        #TODO: adjust the legends on the maps
+
+        #
+
+        #TODO: adjust the elevation legends
+
+        # Set the elevation legend text
+        self.items_dict["Higher Elevation Page 1"]["obj"].setText(str(self.elevation_stats['max_elevation']))  # Set the elevation legend text
+        self.items_dict["High Elevation Page 4"]["obj"].setText(str(self.elevation_stats['max_elevation']))  # Set the elevation legend text
+        self.items_dict["Lower Elevation Page 1"]["obj"].setText(str(self.elevation_stats['min_elevation']))  # Set the elevation legend text
+        self.items_dict["Lower Elevation Page 4"]["obj"].setText(str(self.elevation_stats['min_elevation']))  # Set the elevation legend text
 
 
     
@@ -666,7 +678,7 @@ print("Contour file generated:", contour_file)
 
 
 
-dem_layer, dem_lower_layer = addDEM(SU+"_DEM.tif")
+dem_layer, dem_lower_layer, elevation_stats = addDEM(SU+"_DEM.tif")
 layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
 layers_dict["dem_lower_layer"] =  dem_lower_layer # Store the layer in the dictionary
 
@@ -676,16 +688,16 @@ layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionar
 
 #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
 #hide logs
-with HiddenPrints():
-    #create an SU Sheet
-    su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, layers_dict)
+# with HiddenPrints():
+#create an SU Sheet
+su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, elevation_stats, layers_dict)
 
-    #manipulate the layout items
-    print("Manipulating layout items...")
+#manipulate the layout items
+print("Manipulating layout items...")
 
 
-    #generate the SU Sheet PDF
-    su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
+#generate the SU Sheet PDF
+su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
 
 
 
