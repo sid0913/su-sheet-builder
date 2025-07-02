@@ -356,6 +356,33 @@ def addDEM(DEM_path):
     color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
     color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
 
+
+
+
+    renderer = dem_layer.renderer()
+    provider = dem_layer.dataProvider()
+    extent = dem_layer.extent()
+
+    ver = provider.hasStatistics(1, QgsRasterBandStats.All)
+
+    stats = provider.bandStatistics(1, QgsRasterBandStats.All,extent, 0)
+    print("Type of renderer is", type(renderer))
+
+    if ver is not False:
+        print ("minimumValue = ", stats.minimumValue)
+
+        print ("maximumValue = ", stats.maximumValue)
+
+    if (stats.minimumValue < 0):
+        min = 0  
+
+    else: 
+        min= stats.minimumValue
+    
+
+
+
+
     #make the color ramp use the min and max elevation values at a 95% range
     color_ramp_min, color_ramp_max = get_color_ramp_values(min_elevation, max_elevation)
     print("Color ramp min:", color_ramp_min, "Color ramp max:", color_ramp_max)
@@ -365,8 +392,27 @@ def addDEM(DEM_path):
     raster_shader.setRasterShaderFunction(ramp_shader)
 
     renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, raster_shader)
+    print (" classification minimumValue = ", renderer.classificationMin())
+    print (" classification maximumValue = ", renderer.classificationMax())
+
+
+
 
     dem_layer.setRenderer(renderer)
+
+    # print("chceking if this exists",dem_layer.dataProvider().bandStatistics(1, QgsRasterBandStats.All))
+    # min_val = stats.minimumValue
+    # max_val = stats.maximumValue
+    # print(f"Min: {min_val}, Max: {max_val}")
+
+    enhancement = renderer.contrastEnhancement()
+
+    min_val = enhancement.minimumValue()
+    max_val = enhancement.maximumValue()
+
+    print(f"Suggested Symbology Min: {min_val}, Max: {max_val}")
+
+
     dem_layer.triggerRepaint()
     
 
