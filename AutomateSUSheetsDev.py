@@ -15,7 +15,6 @@ import sys
 #         "prefix_path": "C:\\Program Files\\QGIS 3.40.8",
 #     }
 # }
-import sys
 # sys.path = [x for x in sys.path if 'Python312' not in x]  # Remove existing QGIS paths
 # sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\Python312\\DLLs") # issues with DLL
 # sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\Python312") # issues with DLL
@@ -23,6 +22,7 @@ import sys
 # print(sys.path)
 
 #got the sys.path result of qgis's python-qgis-ltr.bat file (this is a python console)
+import sys
 sys.path = ['', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\qgis-ltr\\python', 'C:\\Program Files\\QGIS 3.40.8\\bin', 'C:\\Program Files\\QGIS 3.40.8\\bin\\python312.zip', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\DLLs', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32\\lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\Pythonwin']
 sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins")
 
@@ -33,6 +33,8 @@ from PyQt5.QtXml import QDomDocument
 from PyQt5.QtGui import QFont
 import processing
 from processing.core.Processing import Processing
+from generate_top_shp import create_SU_shp_file
+
 # Supply path to qgis install location
 QgsApplication.setPrefixPath("C:\\Program Files\\QGIS 3.40.8", True)  
 
@@ -537,13 +539,13 @@ QGS_FILE_NAME="TARP_SU_Sheets_2025_test_updating_v2.qgs"
 SU = "SU_17001"  # Example SU name, change as needed
 TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
 JobID = "707"
-SU_ShapeFile_name = "SU_17001_EPSG_32632.shp"
+SU_ShapeFile_name = f"{SU}_EPSG_32632.shp"
 SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example shapefile name, change as needed
 DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
 CONTOUR_INTERVAL = 0.02
 TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
 SU_SHEET_TRENCH_TEMPLATE_PATH = "SU_Layout_Templates/SU_Template_17000.qpt"
-
+YEAR = "2025"  # Example year, change as needed
 
 layers_dict = {}
 
@@ -572,9 +574,6 @@ print("project",project.fileName())
 
 
 
-
-
-
 #adding it to the right trench and SU folder
 #create SU folder if it doesn't exist
 root = project.layerTreeRoot()
@@ -585,25 +584,17 @@ layers_dict["root"] = root  # Store the root in the dictionary
 print("Setting up QGIS file...")
 setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
 
-# list_of_gcp_layers = [ item for item in root.children() if item.name() == "GCP-Drone-Flight-2025"]  # Get the root children (top-level groups and layers)
-# # check if the GCP-Drone-Flight-2025 layer exists
-# if len(list_of_gcp_layers) < 1:
-#     raise ValueError("GCP-Drone-Flight-2025 layer not found in the project. Please check the project structure.")
-# layers_dict["drone-flight"] = list_of_gcp_layers[0].layer()  # Store the GCP layer in the dictionary
 
-
-# #get the TARP 2025 Trench Boundaries 6-1-2025
-# list_of_boundary_layers = [item for item in root.children() if item.name() == "TARP 2025 Trench Boundaries 6-1-2025"]
-# if len(list_of_boundary_layers) < 1:
-#     raise ValueError("TARP 2025 Trench Boundaries 6-1-2025 layer not found in the project. Please check the project structure.")
-# layers_dict["trench-boundaries"] = list_of_boundary_layers[0].layer()  # Store the trench boundaries layer in the dictionary
-# root.addGroup(TRENCH)  # Add the trench folder if it doesn't exist
-# trench_folder = root.findGroup(TRENCH)
-
-# SU_folder = trench_folder.findGroup(SU)
-# if SU_folder is None:
-#     print(f"Creating folder for {SU} under {TRENCH}...")
-#     SU_folder = trench_folder.addGroup(SU)  # Add SU folder under trench folder
+#create the SU shp file if it doesn't exist
+if not os.path.exists(SU_ShapeFile):
+    print(f"Creating SU shapefile for {SU}... (takes a while, 5-10 minutes)")
+    create_SU_shp_file({
+        "obj_file": os.path.join(PATH, "Volumetrics_2025", TRENCH, SU+".obj"),
+        "output_file_path": os.path.join(PATH, "AutomateRockMask", "3D_SU_Shapefiles"),
+        "su_number": int(SU.split("_")[1]),
+        "year": YEAR
+    })
+    print(f"SU shapefile {SU_ShapeFile} created successfully.")
 
 
 #add the ortho photo of the corresponing job id
