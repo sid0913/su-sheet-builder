@@ -144,7 +144,31 @@ def add_ortho_photo(JobID, project, layers_dict):
     # If no ortho photo is found, raise an error
     raise FileNotFoundError(f"No ortho photo found for Job {JobID} in the 'Orthos' directory.")
     
+#takes the min and max elevation values and returns the 95% of the range for the color ramp
+def get_color_ramp_values(min_elevation, max_elevation, range_fraction=0.9):
+    """
+    Returns the color ramp values for the given min and max elevation values.
+    The color ramp values are set to 95% of the range between min and max elevation.
+    """
+    # range = max_elevation - min_elevation
+    # color_ramp_min = round(min_elevation + (range * (1 - range_fraction)), 2)
+    # color_ramp_max = round(max_elevation - (range * (1 - range_fraction)), 2)
 
+    #for some reason for SU170001, only a 0.3 range works, so we hardcode it, anything else results in the dem being all blue
+    #Update: 0.3 doesn't work, only 4.5 and 4.8 work eventhough the po
+    
+    # avg = round((min_elevation + max_elevation) / 2, 2)
+    # color_ramp_max = avg+0.3
+    # color_ramp_min = avg-0.3
+
+
+    # print("the types of color_ramp_min and color_ramp_max are", type(color_ramp_min), type(color_ramp_max))
+    
+    #4.9
+
+    # return 4.5, 4.8
+    return 4.75, 5.05 #doesn't work for 4.75, 5.05, when i use the average of the min and max and have a std of 0.15
+    # return color_ramp_min, color_ramp_max
 
 def lockItem(item):
     """Locks the specified item in the layout."""
@@ -331,7 +355,11 @@ def addDEM(DEM_path):
     #add a default color ramp shader to the DEM layer
     color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
     color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
-    ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
+
+    #make the color ramp use the min and max elevation values at a 95% range
+    color_ramp_min, color_ramp_max = get_color_ramp_values(min_elevation, max_elevation)
+    print("Color ramp min:", color_ramp_min, "Color ramp max:", color_ramp_max)
+    ramp_shader = QgsColorRampShader(color_ramp_min, color_ramp_max, color_ramp)
     ramp_shader.classifyColorRamp()# Add this line
     raster_shader = QgsRasterShader()
     raster_shader.setRasterShaderFunction(ramp_shader)
@@ -375,7 +403,7 @@ class SUSheet():
 
         #load the layout template
         self.doc, self.layout, self.items_dict, self.template_map_content_dict = self.load_layout_template(template_path)
-        print("the items_dict is", self.items_dict.keys())
+        # print("the items_dict is", self.items_dict.keys())
         # print("the items_dict is", [(self.items_dict[key]["obj"].displayName(), self.items_dict[key]["obj"]) for key in self.items_dict.keys()])
 
 
@@ -689,16 +717,16 @@ layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionar
 
 #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
 #hide logs
-# with HiddenPrints():
-#create an SU Sheet
-su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, elevation_stats, layers_dict)
+with HiddenPrints():
+    #create an SU Sheet
+    su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, elevation_stats, layers_dict)
 
-#manipulate the layout items
-print("Manipulating layout items...")
+    #manipulate the layout items
+    print("Manipulating layout items...")
 
 
-#generate the SU Sheet PDF
-su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
+    #generate the SU Sheet PDF
+    su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
 
 
 
