@@ -329,7 +329,8 @@ def addDEM(DEM_path):
 
 
     #add a default color ramp shader to the DEM layer
-    color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
+    color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
+    color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
     ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
     ramp_shader.classifyColorRamp()# Add this line
     raster_shader = QgsRasterShader()
