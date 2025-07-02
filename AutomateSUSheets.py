@@ -61,7 +61,7 @@ project = QgsProject.instance()
 
 
 print("Loading project...")
-project.read('TARP_SU_Sheets_2025_test.qgs')
+project.read('TARP_SU_Sheets_2025_test_updating_v2.qgs')
 print("project",project.fileName())
 
 # print("Adding layers...")
@@ -70,9 +70,30 @@ print("project",project.fileName())
 # QgsProject.instance().addMapLayer(vlayer)
 # print("Layer added:", layer.name())
 
-print("Running processing script...")
 SU_number = "SU_17004"
 Processing.initialize()
+
+
+
+
+
+# processing.initialize(QgsApplication.processingRegistry())
+# run the script
+import processing
+
+
+
+# Path to your custom script file
+script_path = "obj2shp.py"
+
+# Make sure the script exists
+if not os.path.exists(script_path):
+    raise FileNotFoundError(f"Script not found: {script_path}")
+
+# Get the script provider and add the script manually
+# script_provider = QgsApplication.processingRegistry().providerById('script')
+# script_provider.loadAlgorithms()  # make sure existing ones are loaded
+# script_provider.loadAlgorithm(script_path)
 
 
 print("Available processing algorithms:")
@@ -81,19 +102,25 @@ for alg in QgsApplication.processingRegistry().algorithms():
     if 'Convert' in alg.id() or "Convert" in alg.displayName():
         print("Script found:", alg.id(), "->", alg.displayName())
 
+parameters = {
+    "obj_file": "C:\\Users\\Photogrammetry\\Volumetrics_2025\\Trench 17000\\SU_17004.obj",
+    "output_file_path": "3D_SU_Shapefiles",
+    "su_number": 17004,
+    "year": "2025"
+}
 
+from generate_top_shp import create_SU_shp_file
+create_SU_shp_file(parameters)
 
+# print("Running processing algorithm...")
+# result = processing.run("script:Convert SU 3D OBJ to 3D SHP Polygon",{
+#     "obj_file": os.path.join(PATH, "Volumetrics_2025","Trench 17000", SU_number),   
+#     "output_file_path": os.path.join(PATH, "AutomateRockMask", "3D_SU_Shapefiles"),
+#     "su_number": SU_number,
+#     "year": "2025",
+# })
 
-# processing.initialize(QgsApplication.processingRegistry())
-# run the script
-import processing
-processing.run("script:Convert SU 3D OBJ to 3D SHP Polygon",{
-    "obj_file": os.path.join(PATH, "Volumetrics_2025","Trench 17000", SU_number),   
-    "output_file_path": os.path.join(PATH, "AutomateRockMask", "3D_SU_Shapefiles"),
-    "su_number": SU_number,
-    "year": "2025",
-})
-
+# print("Processing result:", result)
 
 #UNCOMMENT TO SAVE THE PROJECT
 # print("saving project...")
