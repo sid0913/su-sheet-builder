@@ -296,15 +296,21 @@ def addDEM(DEM_path):
     Returns:
         QgsRasterLayer: The added DEM layer."""
     print(f"Adding DEM layer from {DEM_path}...")
+
+    #this has the top 2D color gradient signifying the elevation
     dem_layer = QgsRasterLayer(DEM_path, "DEM Layer")
+
+    #this has the top 3D volume-ish structure
     dem_lower_layer = QgsRasterLayer(DEM_path, "DEM Lower Layer")
+
+    
     if not dem_layer.isValid():
         print("Failed to load DEM layer.")
         return
 
-    #add style to the DEM layer
+    #add style to the lower DEM layer
     dem_lower_layer.loadNamedStyle("Styles/DEM_Hillshade_style_new.qml")
-    
+
     project.addMapLayer(dem_lower_layer)
     project.addMapLayer(dem_layer)
 
