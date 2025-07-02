@@ -166,8 +166,8 @@ def get_color_ramp_values(min_elevation, max_elevation, range_fraction=0.9):
     
     #4.9
 
-    # return 4.5, 4.8
-    return 4.75, 5.05 #doesn't work for 4.75, 5.05, when i use the average of the min and max and have a std of 0.15
+    return 4.5, 4.8
+    # return 4.75, 5.05 #doesn't work for 4.75, 5.05, when i use the average of the min and max and have a std of 0.15
     # return color_ramp_min, color_ramp_max
 
 def lockItem(item):
@@ -405,12 +405,12 @@ def addDEM(DEM_path):
     # max_val = stats.maximumValue
     # print(f"Min: {min_val}, Max: {max_val}")
 
-    enhancement = renderer.contrastEnhancement()
+    # enhancement = renderer.contrastEnhancement()
 
-    min_val = enhancement.minimumValue()
-    max_val = enhancement.maximumValue()
+    # min_val = enhancement.minimumValue()
+    # max_val = enhancement.maximumValue()
 
-    print(f"Suggested Symbology Min: {min_val}, Max: {max_val}")
+    # print(f"Suggested Symbology Min: {min_val}, Max: {max_val}")
 
 
     dem_layer.triggerRepaint()
