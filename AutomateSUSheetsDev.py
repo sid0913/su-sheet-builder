@@ -297,10 +297,15 @@ def addDEM(DEM_path):
         QgsRasterLayer: The added DEM layer."""
     print(f"Adding DEM layer from {DEM_path}...")
     dem_layer = QgsRasterLayer(DEM_path, "DEM Layer")
+    dem_lower_layer = QgsRasterLayer(DEM_path, "DEM Lower Layer")
     if not dem_layer.isValid():
         print("Failed to load DEM layer.")
         return
 
+    #add style to the DEM layer
+    dem_lower_layer.loadNamedStyle("Styles/DEM_Hillshade_style_new.qml")
+    
+    project.addMapLayer(dem_lower_layer)
     project.addMapLayer(dem_layer)
 
 
@@ -318,7 +323,7 @@ def addDEM(DEM_path):
     
 
     print("DEM layer added:", dem_layer.name())
-    return dem_layer
+    return dem_layer, dem_lower_layer
 
 #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
 #prevents print statements from printing to the console
@@ -390,7 +395,7 @@ class SUSheet():
         self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
         self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
         self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
-    
+
 
         #add color to the SU ShapeFile layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
@@ -446,7 +451,8 @@ class SUSheet():
         #DEM map
         print("Setting up DEM map item...")
         self.layers_dict["drone-flight"].setOpacity(1)
-        self.layers_dict["dem_layer"].setOpacity(1)
+        self.layers_dict["dem_layer"].setOpacity(0.5)
+        self.layers_dict["dem_lower_layer"].setOpacity(1)
         self.layers_dict["contour_layer"].setOpacity(1)  # Set the opacity of the contour layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_black_outline.qml")  # Load the style for the SU ShapeFile layer
         self.layers_dict["ortho_photo"].setOpacity(0)
@@ -456,7 +462,7 @@ class SUSheet():
         zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar DEM Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
         zoomToLayerWithBufferAndScalebar(self.maps["Page 4"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
-        active_layers = [self.layers_dict["contour_layer"], self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["drone-flight"]]  # List of active layers for the overview map item
+        active_layers = [self.layers_dict["contour_layer"], self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["dem_lower_layer"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["drone-flight"]]  # List of active layers for the overview map item
         print("active layers for the DEM map item:", [layer.name() for layer in active_layers])
         self.maps["Page 1"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         self.maps["Page 4"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
@@ -654,8 +660,9 @@ print("Contour file generated:", contour_file)
 
 
 
-dem_layer = addDEM(SU+"_DEM.tif")
+dem_layer, dem_lower_layer = addDEM(SU+"_DEM.tif")
 layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
+layers_dict["dem_lower_layer"] =  dem_lower_layer # Store the layer in the dictionary
 
 #add the contour layer to the SU folder
 contour_layer = addContour(contour_file)
