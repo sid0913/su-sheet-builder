@@ -320,7 +320,16 @@ def addDEM(DEM_path):
     print("DEM layer added:", dem_layer.name())
     return dem_layer
 
+#CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
+#prevents print statements from printing to the console
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout.close()
+        sys.stdout = self._original_stdout
 
 class SUSheet():
     def __init__(self, template_path:str, su:str, trench:str, description:str, pdf_path:str, layers_dict:dict):
@@ -546,7 +555,6 @@ CONTOUR_INTERVAL = 0.02
 TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
 SU_SHEET_TRENCH_TEMPLATE_PATH = "SU_Layout_Templates/SU_Template_17000.qpt"
 YEAR = "2025"  # Example year, change as needed
-
 layers_dict = {}
 
 
@@ -581,6 +589,7 @@ print("These are the initial project layers",[item.name() for item in root.child
 
 layers_dict["root"] = root  # Store the root in the dictionary
 
+
 print("Setting up QGIS file...")
 setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
 
@@ -588,12 +597,15 @@ setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing
 #create the SU shp file if it doesn't exist
 if not os.path.exists(SU_ShapeFile):
     print(f"Creating SU shapefile for {SU}... (takes a while, 5-10 minutes)")
-    create_SU_shp_file({
-        "obj_file": os.path.join(PATH, "Volumetrics_2025", TRENCH, SU+".obj"),
-        "output_file_path": os.path.join(PATH, "AutomateRockMask", "3D_SU_Shapefiles"),
-        "su_number": int(SU.split("_")[1]),
-        "year": YEAR
-    })
+    #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
+    #hide logs
+    with HiddenPrints():
+        create_SU_shp_file({
+            "obj_file": os.path.join(PATH, "Volumetrics_2025", TRENCH, SU+".obj"),
+            "output_file_path": os.path.join(PATH, "AutomateRockMask", "3D_SU_Shapefiles"),
+            "su_number": int(SU.split("_")[1]),
+            "year": YEAR
+        })
     print(f"SU shapefile {SU_ShapeFile} created successfully.")
 
 
@@ -649,15 +661,20 @@ layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
 contour_layer = addContour(contour_file)
 layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionary
 
-#create an SU Sheet
-su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, layers_dict)
+#CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
+#hide logs
+with HiddenPrints():
+    #create an SU Sheet
+    su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, layers_dict)
 
-#manipulate the layout items
-print("Manipulating layout items...")
+    #manipulate the layout items
+    print("Manipulating layout items...")
 
 
-#generate the SU Sheet PDF
-su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
+    #generate the SU Sheet PDF
+    su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
+
+
 
 
 

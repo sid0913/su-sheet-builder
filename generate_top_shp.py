@@ -77,6 +77,7 @@ def create_SU_shp_file(parameters):
     # Fix geometries - Takes temporary shapefile exported by Blender
     temp_shp = Path.joinpath(tool_dir,"tmp_SU.shp")
     print("temp shp: ", temp_shp)
+    print("Handing the processing to QGIS for some final shape file processing... (5 minutes)")
     alg_params = {
         'INPUT': str(temp_shp),
         'METHOD': 1,  # Structure
