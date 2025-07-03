@@ -808,16 +808,16 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
     #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
     #hide logs
-    with HiddenPrints():
+    # with HiddenPrints():
         #create an SU Sheet
-        su_sheet = SUSheet(su_sheet_trench_template_path, su, trench, description, pdf_path, elevation_stats, layers_dict)
+    su_sheet = SUSheet(su_sheet_trench_template_path, su, trench, description, pdf_path, elevation_stats, layers_dict)
 
-        #manipulate the layout items
-        print("Manipulating layout items...")
+    #manipulate the layout items
+    print("Manipulating layout items...")
 
 
-        #generate the SU Sheet PDF
-        su_sheet.generatePDF(pdf_path)  # Generate the PDF using the template
+    #generate the SU Sheet PDF
+    su_sheet.generatePDF(pdf_path)  # Generate the PDF using the template
 
 
 
