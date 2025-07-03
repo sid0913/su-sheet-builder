@@ -2,30 +2,11 @@
 
 import sys
 
-# version = "3.36.2"  # Change this to your desired QGIS version
-# version = "3.40.8"  # Change this to your desired QGIS version
-
-# changes = {
-#     "3.36.2": {
-#         "install_path":"C:\\Program Files\\QGIS 3.36.2\\apps\\qgis\\python",
-#         "prefix_path": "C:\\Program Files\\QGIS 3.36.2",
-#     },
-#     "3.40.8": {
-#         "install_path":"C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python",
-#         "prefix_path": "C:\\Program Files\\QGIS 3.40.8",
-#     }
-# }
-# sys.path = [x for x in sys.path if 'Python312' not in x]  # Remove existing QGIS paths
-# sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\Python312\\DLLs") # issues with DLL
-# sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\Python312") # issues with DLL
-# sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python") # issues with DLL
-# print(sys.path)
 
 #got the sys.path result of qgis's python-qgis-ltr.bat file (this is a python console)
 import sys
 sys.path = ['', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\qgis-ltr\\python', 'C:\\Program Files\\QGIS 3.40.8\\bin', 'C:\\Program Files\\QGIS 3.40.8\\bin\\python312.zip', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\DLLs', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32\\lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\Pythonwin']
 sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins")
-
 
 import os
 from qgis.core import QgsApplication, QgsRasterBandStats, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
@@ -92,6 +73,19 @@ def setNoDataValue(layer):
             provider.setUserNoDataValue(band, existing_no_data)
 
     layer.triggerRepaint()
+
+
+def get_DEM_path(job_id):
+    """Returns the path to the DEM file based on the job ID."""
+    for file in os.listdir("DEM"):
+        # Check if the file matches the job ID pattern
+        if f"Pgram_Job_{job_id}" in file and file.endswith(".tif"):
+            dem_path = os.path.join("DEM", file)
+            print(f"Found DEM file: {dem_path}")
+            return dem_path
+
+    #if no DEM file is found, raise an error
+    raise FileNotFoundError(f"DEM file for job_id {job_id} not found. Please check the DEM/ directory.")
 
 
 def add_ortho_photo(job_id, project, layers_dict):
@@ -469,8 +463,18 @@ class SUSheet():
         # print("the items_dict is", self.items_dict.keys())
         # print("the items_dict is", [(self.items_dict[key]["obj"].displayName(), self.items_dict[key]["obj"]) for key in self.items_dict.keys()])
 
+        #find the title and description items in the layout
 
-        self.title = self.items_dict['Trench 17000 • SU 17001']["obj"]
+        #find the placeholder text which differs by trench
+        # e.g. "Trench 17000 • SU 17001" for Trench 17000's qgs template
+        title_placeholder = ''
+        for key in self.items_dict.keys():
+            if f'{trench} • ' in key:
+                title_placeholder = key
+                break
+
+
+        self.title = self.items_dict[title_placeholder]["obj"]
         self.description = self.items_dict['Description:']["obj"]
 
         self.title.setText(f"{self.su_info['trench']} • {self.su_info['su'].replace("_", " ")}") # Replace underscores with spaces in the title
@@ -669,11 +673,23 @@ class SUSheet():
 
 
 def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path):
+    """Generates a SU sheet for the given SU, trench, and job ID.
+    Args:   
+        qgs (QgsApplication): The QGIS application instance.
+        su (str): The SU name.
+        trench (str): The trench name.
+        job_id (str): The job ID that opens this SU
+        year (int): The year of the SU.
+        description (str): Description of the SU.
+        pdf_path (str): Path to save the generated PDF.
+        qgs_project_template (str): Path to the QGIS project template file.
+        photogrammetry_path (str): Path to the photogrammetry files."""
 
     CONTOUR_INTERVAL = 0.02
     su_shapeFile_name = f"{su}_EPSG_32632.shp"
     su_shapefile_path = os.path.join("3D_SU_Shapefiles", su_shapeFile_name)  # Example shapefile name, change as needed
-    DEM_path = os.path.join("DEM",f"Pgram_Job_{job_id}_{su.replace('_', '')}_dem.tif")
+    DEM_path = get_DEM_path(job_id)
+    # DEM_path = os.path.join("DEM",f"Pgram_Job_{job_id}_{su.replace('_', '')}_dem.tif")
     su_sheet_trench_template_path = f"SU_Layout_Templates/SU_Template_{trench.split(' ')[1]}.qpt"
 
     layers_dict = {}
@@ -711,15 +727,24 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     #create the SU shp file if it doesn't exist
     if not os.path.exists(su_shapefile_path):
         print(f"Creating SU shapefile for {su}... (takes a while, 5-10 minutes)")
+
+
+        #check if the Volumetrics su obj file exists
+        su_volume_path = os.path.join(photogrammetry_path, "Volumetrics_2025", trench, su+".obj")
+
+        if not os.path.exists(su_volume_path):
+            raise FileNotFoundError(f"SU volume file {su_volume_path} not found. Please check the file path.")
+
         #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
         #hide logs
         with HiddenPrints():
             create_SU_shp_file({
-                "obj_file": os.path.join(photogrammetry_path, "Volumetrics_2025", trench, su+".obj"),
+                "obj_file": su_volume_path,
                 "output_file_path": os.path.join(photogrammetry_path, "AutomateRockMask", "3D_SU_Shapefiles"),
                 "su_number": int(su.split("_")[1]),
                 "year": year
             })
+            print(f"SU shapefile created in {time_elapsed} minutes by Blender and QGIS.")
         print(f"SU shapefile {su_shapefile_path} created successfully.")
 
 
@@ -804,13 +829,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     print("saving project...")
     project.write()  # Save the project after adding the layer
 
-    # Write your code here to load some layers, use processing
-    # algorithms, etc.
 
-    # Finally, exitQgis() is called to remove the
-    # provider and layer registries from memory
-    print("Exiting QGIS Application...")
-    qgs.exitQgis()  
 
 
 
@@ -831,36 +850,8 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
 
 
-QGS_FILE_NAME="TARP_SU_Sheets_2025_test_updating_v2.qgs"
-PATH = "C:\\Users\\Photogrammetry"
+#this is where QGS is installed
 QGS_PROGRAM_PATH = "C:\\Program Files\\QGIS 3.40.8"
-
-
-# # Supply path to qgis install location
-# QgsApplication.setPrefixPath("C:\\Program Files\\QGIS 3.40.8", True) 
-
-
-
-
-# # Initialize QGIS Application
-# qgs = QgsApplication([], False)
-# print("Intializing QGIS Application...")
-# # Load providers
-# qgs.initQgis()
-# Processing.initialize()  # Initialize the Processing framework
-
-
-
-# SU = "SU_17001"  # Example SU name, change as needed
-# TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
-# JobID = "707"
-# TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
-# YEAR = "2025"  # Example year, change as needed
-# DESCRIPTION = "SU 17001 description specific"  # Add a description for the SU
-
-
-
-
 
 def start_QGS():
     """Initializes the QGIS application and sets up the environment."""
@@ -876,19 +867,24 @@ def start_QGS():
 
     return qgs
 
-qgs = start_QGS()  # Start the QGIS application
+def close_QGS(qgs):
+    """Exits the QGIS application."""
+    print("Exiting QGIS Application...")
+    qgs.exitQgis()
 
-# Generate the SU Sheet
-try:
-    # generate_SU_Sheet(qgs, SU, TRENCH, JobID, YEAR, DESCRIPTION, TEMPLATE_PDF_PATH, QGS_FILE_NAME, PATH)
-    generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
-    print("SU Sheet generated successfully.")
-except Exception as e:
-    print(f"Error generating SU Sheet: {e}")
+# qgs = start_QGS()  # Start the QGIS application
+
+# # Generate the SU Sheet
+# try:
+#     # generate_SU_Sheet(qgs, SU, TRENCH, JobID, YEAR, DESCRIPTION, TEMPLATE_PDF_PATH, QGS_FILE_NAME, PATH)
+#     generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
+#     print("SU Sheet generated successfully.")
+# except Exception as e:
+#     print(f"Error generating SU Sheet: {e}")
 
 
 
 
-# Exit QGIS Application
-print("Exiting QGIS Application...")
-qgs.exitQgis()
+# # Exit QGIS Application
+# print("Exiting QGIS Application...")
+# qgs.exitQgis()
