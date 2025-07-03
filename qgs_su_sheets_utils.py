@@ -744,7 +744,6 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
                 "su_number": int(su.split("_")[1]),
                 "year": year
             })
-            print(f"SU shapefile created in {time_elapsed} minutes by Blender and QGIS.")
         print(f"SU shapefile {su_shapefile_path} created successfully.")
 
 
