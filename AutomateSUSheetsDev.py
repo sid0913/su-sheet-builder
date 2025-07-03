@@ -144,6 +144,93 @@ def add_ortho_photo(JobID, project, layers_dict):
     # If no ortho photo is found, raise an error
     raise FileNotFoundError(f"No ortho photo found for Job {JobID} in the 'Orthos' directory.")
     
+#takes the min and max elevation values and returns the 95% of the range for the color ramp
+def get_color_ramp_values(min_elevation, max_elevation, range_fraction=0.5):
+    """
+    Returns the color ramp values for the given min and max elevation values.
+    The color ramp values are set to 95% of the range between min and max elevation.
+    """
+    # range = max_elevation - min_elevation
+    # color_ramp_min = round(min_elevation + (range * (1 - range_fraction)), 2)
+    # color_ramp_max = round(max_elevation - (range * (1 - range_fraction)), 2)
+
+    #for some reason for SU170001, only a 0.3 range works, so we hardcode it, anything else results in the dem being all blue
+    #Update: 0.3 doesn't work, only 4.5 and 4.8 work eventhough the po
+    
+    # avg = round((min_elevation + max_elevation) / 2, 2)
+    # color_ramp_max = avg+0.3
+    # color_ramp_min = avg-0.3
+
+
+    # print("the types of color_ramp_min and color_ramp_max are", type(color_ramp_min), type(color_ramp_max))
+    
+    #4.9
+
+    # return min_elevation, min_elevation + (max_elevation - min_elevation) * range_fraction #works when the range is 0.95, for this SU
+    return min_elevation, max_elevation
+    # return 4.5, 4.8 #works
+    # return 4.75, 5.05 #doesn't work for 4.75, 5.05, when i use the average of the min and max and have a std of 0.15
+    # return color_ramp_min, color_ramp_max
+
+def getHighContrastMinMaxValues(dem_layer, shader):
+
+
+    # shader = renderer.shader()
+    if shader:
+        raster_shader = shader.rasterShaderFunction()
+        if raster_shader:
+            min_val = raster_shader.minimumValue()
+            max_val = raster_shader.maximumValue()
+            print(f"Pseudocolor renderer new - Min: {min_val}, Max: {max_val}")
+    
+    provider = dem_layer.dataProvider()
+    extent = dem_layer.extent()
+    width = dem_layer.width()
+    height = dem_layer.height()
+    
+    # Compute statistics with estimated accuracy (faster)
+    # This mimics what QGIS does for the symbology dialog
+    stats = provider.bandStatistics(1, 
+                                  QgsRasterBandStats.Min | QgsRasterBandStats.Max,
+                                  extent, 
+                                  0)  # 0 means estimate from sample
+    
+    print(f"Estimated stats for contrast - Min: {stats.minimumValue}, Max: {stats.maximumValue}")
+
+
+    # Method 4: Get cumulative cut values (2% - 98% range often used for contrast)
+    # This is often what creates the "good contrast" you see
+    band_stats = provider.bandStatistics(1, QgsRasterBandStats.All)
+    
+    # Calculate 2% and 98% cumulative cuts
+    hist = provider.histogram(1, 100, band_stats.minimumValue, band_stats.maximumValue)
+    
+    if hist.valid:
+        cumulative = []
+        total = sum(hist.histogramVector)
+        running_sum = 0
+        
+        for count in hist.histogramVector:
+            running_sum += count
+            cumulative.append(running_sum / total)
+        
+        # Calculate bin width manually
+        bin_width = (hist.maximum - hist.minimum) / len(hist.histogramVector)
+        
+        # Find 2.5% and 95% cut points
+        min_2_5_percent = None
+        max_95_percent = None
+        
+        for i, cum_pct in enumerate(cumulative):
+            if min_2_5_percent is None and cum_pct >= 0.025:
+                min_2_5_percent = hist.minimum + (i * bin_width)
+            if max_95_percent is None and cum_pct >= 0.95:
+                max_95_percent = hist.minimum + (i * bin_width)
+                break
+        
+        if min_2_5_percent is not None and max_95_percent is not None:
+            print(f"2.5%-95% stretch - Min: {min_2_5_percent}, Max: {max_95_percent}")
+            return min_2_5_percent, max_95_percent
 
 
 def lockItem(item):
@@ -329,15 +416,79 @@ def addDEM(DEM_path):
 
 
     #add a default color ramp shader to the DEM layer
-    color_ramp = QgsStyle().defaultStyle().colorRamp('Viridis')
-    ramp_shader = QgsColorRampShader(4.5, 4.8, color_ramp)
+    color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
+    color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
+
+
+
+
+    renderer = dem_layer.renderer()
+    provider = dem_layer.dataProvider()
+    extent = dem_layer.extent()
+
+    ver = provider.hasStatistics(1, QgsRasterBandStats.All)
+
+    stats = provider.bandStatistics(1, QgsRasterBandStats.All,extent, 0)
+    print("Type of renderer is", type(renderer))
+
+    if ver is not False:
+        print ("minimumValue = ", stats.minimumValue)
+
+        print ("maximumValue = ", stats.maximumValue)
+
+    if (stats.minimumValue < 0):
+        min = 0  
+
+    else: 
+        min= stats.minimumValue
+    
+
+
+
+
+    print("minimum elevation value is", min_elevation)
+    print("maximum elevation value is", max_elevation)
+    ramp_shader = QgsColorRampShader(min_elevation, max_elevation, color_ramp)
     ramp_shader.classifyColorRamp()# Add this line
     raster_shader = QgsRasterShader()
     raster_shader.setRasterShaderFunction(ramp_shader)
-
     renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, raster_shader)
 
+
     dem_layer.setRenderer(renderer)
+    dem_layer.triggerRepaint()
+
+    #makes the gradient high contrast by taking the 95% of the range to leave out the high elevations
+    contrast_min_value, contrast_max_value = getHighContrastMinMaxValues(dem_layer, raster_shader)  # Get high contrast min/max values
+
+
+
+
+
+    #use the new min and max values to create a new color ramp shader
+    new_color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
+    new_color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
+    new_ramp_shader = QgsColorRampShader(contrast_min_value, contrast_max_value, new_color_ramp)
+    new_ramp_shader.classifyColorRamp()# Add this line
+    new_raster_shader = QgsRasterShader()
+    new_raster_shader.setRasterShaderFunction(new_ramp_shader)
+
+
+    new_renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, new_raster_shader)
+    print (" classification minimumValue = ", new_renderer.classificationMin())
+    print (" classification maximumValue = ", new_renderer.classificationMax())
+
+
+    dem_layer.setRenderer(new_renderer)
+
+
+
+
+
+
+    # print(getHighContrastMinMaxValues(dem_layer))  # Get high contrast min/max values
+
+
     dem_layer.triggerRepaint()
     
 
@@ -374,7 +525,7 @@ class SUSheet():
 
         #load the layout template
         self.doc, self.layout, self.items_dict, self.template_map_content_dict = self.load_layout_template(template_path)
-        print("the items_dict is", self.items_dict.keys())
+        # print("the items_dict is", self.items_dict.keys())
         # print("the items_dict is", [(self.items_dict[key]["obj"].displayName(), self.items_dict[key]["obj"]) for key in self.items_dict.keys()])
 
 
@@ -688,16 +839,16 @@ layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionar
 
 #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
 #hide logs
-# with HiddenPrints():
-#create an SU Sheet
-su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, elevation_stats, layers_dict)
+with HiddenPrints():
+    #create an SU Sheet
+    su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, elevation_stats, layers_dict)
 
-#manipulate the layout items
-print("Manipulating layout items...")
+    #manipulate the layout items
+    print("Manipulating layout items...")
 
 
-#generate the SU Sheet PDF
-su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
+    #generate the SU Sheet PDF
+    su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
 
 
 
