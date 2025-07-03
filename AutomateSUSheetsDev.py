@@ -528,8 +528,8 @@ class SUSheet():
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
 
         #zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overivew Page 1']["obj"], buffer_ratio=2.5)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=2.5)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict[f"{self.su_info['trench']} overview boundary"], self.items_dict['Scalebar Overivew Page 1']["obj"], buffer_ratio=0)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
+        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict[f"{self.su_info['trench']} overview boundary"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=0)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
 
         active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
@@ -738,6 +738,12 @@ if not os.path.exists(SU_ShapeFile):
 #add the ortho photo of the corresponing job id
 add_ortho_photo(JobID, project, layers_dict)
 
+
+#add a trench overview boundary layer
+print("Adding trench overview boundary layer...")
+trench_overview_layer = addLayer(f"{TRENCH.replace(' ','_')}_Overview_Zoom_Rough_Boundary.shp", f"{TRENCH} Overview Boundary")
+trench_overview_layer.setOpacity(0)  # make it transparent, since it only used for zooming in the overview map in the SU Sheet
+layers_dict[f"{TRENCH} overview boundary"] = trench_overview_layer  # Store the trench overview boundary layer in the dictionary
 
 #add the trench boundaries and architecture 2025 layers
 print("Adding trench boundaries layer...")
