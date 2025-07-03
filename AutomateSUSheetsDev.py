@@ -144,61 +144,20 @@ def add_ortho_photo(JobID, project, layers_dict):
     # If no ortho photo is found, raise an error
     raise FileNotFoundError(f"No ortho photo found for Job {JobID} in the 'Orthos' directory.")
     
-#takes the min and max elevation values and returns the 95% of the range for the color ramp
-def get_color_ramp_values(min_elevation, max_elevation, range_fraction=0.5):
-    """
-    Returns the color ramp values for the given min and max elevation values.
-    The color ramp values are set to 95% of the range between min and max elevation.
-    """
-    # range = max_elevation - min_elevation
-    # color_ramp_min = round(min_elevation + (range * (1 - range_fraction)), 2)
-    # color_ramp_max = round(max_elevation - (range * (1 - range_fraction)), 2)
-
-    #for some reason for SU170001, only a 0.3 range works, so we hardcode it, anything else results in the dem being all blue
-    #Update: 0.3 doesn't work, only 4.5 and 4.8 work eventhough the po
-    
-    # avg = round((min_elevation + max_elevation) / 2, 2)
-    # color_ramp_max = avg+0.3
-    # color_ramp_min = avg-0.3
 
 
-    # print("the types of color_ramp_min and color_ramp_max are", type(color_ramp_min), type(color_ramp_max))
-    
-    #4.9
+def get_high_contrast_min_max_values(dem_layer, shader):
+    """Calculates high contrast min/max values for a DEM layer using various methods. This helps create a high-contrast color ramp for the DEM layer.
+    Args:
+        dem_layer (QgsRasterLayer): The DEM layer to analyze.
+        shader (QgsRasterShader): The raster shader for the DEM layer.
+    Returns:
+        tuple: A tuple containing the high contrast min and max values."""
 
-    # return min_elevation, min_elevation + (max_elevation - min_elevation) * range_fraction #works when the range is 0.95, for this SU
-    return min_elevation, max_elevation
-    # return 4.5, 4.8 #works
-    # return 4.75, 5.05 #doesn't work for 4.75, 5.05, when i use the average of the min and max and have a std of 0.15
-    # return color_ramp_min, color_ramp_max
-
-def getHighContrastMinMaxValues(dem_layer, shader):
-
-
-    # shader = renderer.shader()
-    if shader:
-        raster_shader = shader.rasterShaderFunction()
-        if raster_shader:
-            min_val = raster_shader.minimumValue()
-            max_val = raster_shader.maximumValue()
-            print(f"Pseudocolor renderer new - Min: {min_val}, Max: {max_val}")
-    
+    # Get the layer's data provider    
     provider = dem_layer.dataProvider()
-    extent = dem_layer.extent()
-    width = dem_layer.width()
-    height = dem_layer.height()
-    
-    # Compute statistics with estimated accuracy (faster)
-    # This mimics what QGIS does for the symbology dialog
-    stats = provider.bandStatistics(1, 
-                                  QgsRasterBandStats.Min | QgsRasterBandStats.Max,
-                                  extent, 
-                                  0)  # 0 means estimate from sample
-    
-    print(f"Estimated stats for contrast - Min: {stats.minimumValue}, Max: {stats.maximumValue}")
 
-
-    # Method 4: Get cumulative cut values (2% - 98% range often used for contrast)
+    # Get cumulative cut values (2% - 98% range often used for contrast)
     # This is often what creates the "good contrast" you see
     band_stats = provider.bandStatistics(1, QgsRasterBandStats.All)
     
@@ -229,8 +188,78 @@ def getHighContrastMinMaxValues(dem_layer, shader):
                 break
         
         if min_2_5_percent is not None and max_95_percent is not None:
-            print(f"2.5%-95% stretch - Min: {min_2_5_percent}, Max: {max_95_percent}")
+            # print(f"2.5%-95% stretch - Min: {min_2_5_percent}, Max: {max_95_percent}")
             return min_2_5_percent, max_95_percent
+
+
+def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
+    """Creates a high-contrast color ramp for a DEM layer. This assigns the renderer a lower max elevation value to create a high-contrast color ramp.
+    Args:
+        dem_layer (QgsRasterLayer): The DEM layer to apply the color ramp to.
+    Returns:
+        QgsSingleBandPseudoColorRenderer: The renderer with the high-contrast color ramp applied."""
+    
+
+    #add a default color ramp shader to the DEM layer
+    color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
+    color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
+
+
+    renderer = dem_layer.renderer()
+    provider = dem_layer.dataProvider()
+    extent = dem_layer.extent()
+
+    ver = provider.hasStatistics(1, QgsRasterBandStats.All)
+
+    stats = provider.bandStatistics(1, QgsRasterBandStats.All,extent, 0)
+    print("Type of renderer is", type(renderer))
+
+    if ver is not False:
+        print ("minimumValue = ", stats.minimumValue)
+
+        print ("maximumValue = ", stats.maximumValue)
+
+    if (stats.minimumValue < 0):
+        min = 0  
+
+    else: 
+        min= stats.minimumValue
+    
+    
+    ramp_shader = QgsColorRampShader(min_elevation, max_elevation, color_ramp)
+    ramp_shader.classifyColorRamp()# Add this line
+    raster_shader = QgsRasterShader()
+    raster_shader.setRasterShaderFunction(ramp_shader)
+    renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, raster_shader)
+
+
+    dem_layer.setRenderer(renderer)
+    dem_layer.triggerRepaint()
+
+    #makes the gradient high contrast by taking the 95% of the range to leave out the high elevations
+    contrast_min_value, contrast_max_value = get_high_contrast_min_max_values(dem_layer, raster_shader)  # Get high contrast min/max values
+
+
+
+
+
+    #use the new min and max values to create a new color ramp shader
+    new_color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
+    new_color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
+    new_ramp_shader = QgsColorRampShader(contrast_min_value, contrast_max_value, new_color_ramp)
+    new_ramp_shader.classifyColorRamp()# Add this line
+    new_raster_shader = QgsRasterShader()
+    new_raster_shader.setRasterShaderFunction(new_ramp_shader)
+
+
+    new_renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, new_raster_shader)
+    # print (" classification minimumValue = ", new_renderer.classificationMin())
+    # print (" classification maximumValue = ", new_renderer.classificationMax())
+
+    #set the new dem layer settings
+    dem_layer.setRenderer(new_renderer)
+    dem_layer.triggerRepaint()
+
 
 
 def lockItem(item):
@@ -376,7 +405,7 @@ def addContour(contour_file):
     print("Contour layer added:", contour_layer.name())
     return contour_layer
 
-def addDEM(DEM_path):
+def add_DEM(DEM_path):
     """Adds a DEM layer to the project.
     Args:
         DEM_path (str): Path to the DEM file.   
@@ -389,6 +418,7 @@ def addDEM(DEM_path):
 
     #this has the top 3D volume-ish structure
     dem_lower_layer = QgsRasterLayer(DEM_path, "DEM Lower Layer")
+
 
     provider = dem_layer.dataProvider()
     
@@ -403,94 +433,19 @@ def addDEM(DEM_path):
         "max_elevation": max_elevation
     }
 
-    
-    if not dem_layer.isValid():
-        print("Failed to load DEM layer.")
+    #makes the color gradient high contrast
+    make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation)
+
+    if not dem_layer.isValid() or not dem_lower_layer.isValid():
+        print("Failed to load DEM layers.")
         return
 
     #add style to the lower DEM layer
     dem_lower_layer.loadNamedStyle("Styles/DEM_Hillshade_style_new.qml")
 
+    #add them to the map
     project.addMapLayer(dem_lower_layer)
     project.addMapLayer(dem_layer)
-
-
-    #add a default color ramp shader to the DEM layer
-    color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
-    color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
-
-
-
-
-    renderer = dem_layer.renderer()
-    provider = dem_layer.dataProvider()
-    extent = dem_layer.extent()
-
-    ver = provider.hasStatistics(1, QgsRasterBandStats.All)
-
-    stats = provider.bandStatistics(1, QgsRasterBandStats.All,extent, 0)
-    print("Type of renderer is", type(renderer))
-
-    if ver is not False:
-        print ("minimumValue = ", stats.minimumValue)
-
-        print ("maximumValue = ", stats.maximumValue)
-
-    if (stats.minimumValue < 0):
-        min = 0  
-
-    else: 
-        min= stats.minimumValue
-    
-
-
-
-
-    print("minimum elevation value is", min_elevation)
-    print("maximum elevation value is", max_elevation)
-    ramp_shader = QgsColorRampShader(min_elevation, max_elevation, color_ramp)
-    ramp_shader.classifyColorRamp()# Add this line
-    raster_shader = QgsRasterShader()
-    raster_shader.setRasterShaderFunction(ramp_shader)
-    renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, raster_shader)
-
-
-    dem_layer.setRenderer(renderer)
-    dem_layer.triggerRepaint()
-
-    #makes the gradient high contrast by taking the 95% of the range to leave out the high elevations
-    contrast_min_value, contrast_max_value = getHighContrastMinMaxValues(dem_layer, raster_shader)  # Get high contrast min/max values
-
-
-
-
-
-    #use the new min and max values to create a new color ramp shader
-    new_color_ramp = QgsStyle().defaultStyle().colorRamp('RdYlBu')
-    new_color_ramp.invert()  # Invert the color ramp to have lower elevations in blue and higher in red
-    new_ramp_shader = QgsColorRampShader(contrast_min_value, contrast_max_value, new_color_ramp)
-    new_ramp_shader.classifyColorRamp()# Add this line
-    new_raster_shader = QgsRasterShader()
-    new_raster_shader.setRasterShaderFunction(new_ramp_shader)
-
-
-    new_renderer = QgsSingleBandPseudoColorRenderer(dem_layer.dataProvider(), 1, new_raster_shader)
-    print (" classification minimumValue = ", new_renderer.classificationMin())
-    print (" classification maximumValue = ", new_renderer.classificationMax())
-
-
-    dem_layer.setRenderer(new_renderer)
-
-
-
-
-
-
-    # print(getHighContrastMinMaxValues(dem_layer))  # Get high contrast min/max values
-
-
-    dem_layer.triggerRepaint()
-    
 
     print("DEM layer added:", dem_layer.name())
     return dem_layer, dem_lower_layer, elevation_stats
@@ -557,7 +512,6 @@ class SUSheet():
 
 
 
-        #TODO: pick the bookmark zoom level for the Trench
 
         #Overview map
         print("Setting up Overview map item...")
@@ -631,9 +585,6 @@ class SUSheet():
         lockItem(self.maps["Page 4"]["DEM"])  # Lock the DEM map item, page 1
 
 
-        #
-
-        #TODO: adjust the elevation legends
 
         # Set the elevation legend text
         self.items_dict["Higher Elevation Page 1"]["obj"].setText(str(self.elevation_stats['max_elevation']))  # Set the elevation legend text
@@ -829,7 +780,7 @@ print("Contour file generated:", contour_file)
 
 
 
-dem_layer, dem_lower_layer, elevation_stats = addDEM(SU+"_DEM.tif")
+dem_layer, dem_lower_layer, elevation_stats = add_DEM(SU+"_DEM.tif")
 layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
 layers_dict["dem_lower_layer"] =  dem_lower_layer # Store the layer in the dictionary
 
