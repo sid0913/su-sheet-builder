@@ -50,14 +50,13 @@ if __name__ == "__main__":
             return pd.DataFrame()
         
 
-    def get_jobs_from_pgram_csv(su_sheet_df, pgram_csv_path):
+    def get_jobs_from_pgram_csv(pgram_csv_path):
         """
         Get photogrammetry information from a CSV file.
         """
         try:
             pgram_df = pd.read_csv(pgram_csv_path)
-            modify_pgram_csv(su_sheet_df, pgram_df)  # Modify the DataFrame as needed
-            return su_sheet_df
+            return  modify_pgram_csv(pgram_df)  # Modify the DataFrame as needed
         except Exception as e:
             print(f"Error importing photogrammetry information: {e}")
             return None
@@ -75,7 +74,7 @@ if __name__ == "__main__":
                 result.append(int(part))
         return result
     
-    def modify_pgram_csv(su_sheet_df, min_trench = 17000, max_trench = 20000):
+    def modify_pgram_csv(df, min_trench = 17000, max_trench = 20000):
         """
         Modify the DataFrame as needed and add the jobs to missing spots in the SU sheet data.
         This function processes the DataFrame to extract job IDs and SUs from the 'Pgram Number' and 'SUs Open' columns.
@@ -89,7 +88,7 @@ if __name__ == "__main__":
             pd.DataFrame: A new DataFrame containing the processed job IDs and SUs.
         """
 
-        # new_df = pd.DataFrame(columns=["SU", "job_id"])  # Create a new DataFrame to store the results
+        new_df = pd.DataFrame(columns=["SU", "job_id"])  # Create a new DataFrame to store the results
 
         df = df[~df['Pgram Number'].isna() & (df['Pgram Number'] != '')]  # Remove rows where 'Pgram Number' is NaN or empty
         df = df[~df['Pgram Number'].isna() & (df['SUs Open'] != '') ]  # Remove rows where 'Pgram Number' is NaN or empty
@@ -114,18 +113,17 @@ if __name__ == "__main__":
                 # if su <= min_trench or su > max_trench:
                 #     continue
                 # print(f"Processing SU: {su} with Job ID: {job_id}")
-                # new_df = pd.concat([new_df , pd.DataFrame({"SU": [f"{su}"], "job_id": [job_id]})])  # Append the row to the new DataFrame
-                su_sheet_df.loc[su_sheet_df['SU'] == f"SU_{su}", 'job_id'] = job_id  # Update the job_id in the su_sheet_df DataFrame
-                su_sheet_df.loc[su_sheet_df['job_id'] == job_id, 'SU'] = f"SU_{su}"  # Update the description in the su_sheet_df DataFrame
+                new_df = pd.concat([new_df , pd.DataFrame({"SU": [f"{su}"], "job_id": [job_id]})])  # Append the row to the new DataFrame
+                # su_sheet_df.loc[su_sheet_df['SU'] == f"SU_{su}", 'job_id'] = job_id  # Update the job_id in the su_sheet_df DataFrame
+                # su_sheet_df.loc[su_sheet_df['job_id'] == job_id, 'SU'] = f"SU_{su}"  # Update the description in the su_sheet_df DataFrame
         # print(f"Total number of jobs found: {len(new_df)}")
 
 
-        # new_df = new_df[new_df.apply(lambda x: min_trench <= int(x['SU']) < max_trench, axis=1)]
-        # # new_df.to_excel(os.path.join(PATH, "GIS_2025", "pgram_jobs_new.xlsx"), index=False)  # Save the modified DataFrame to an Excel file
-        # return new_df
+        new_df = new_df[new_df.apply(lambda x: min_trench <= int(x['SU']) < max_trench, axis=1)]
+        # new_df.to_excel(os.path.join(PATH, "GIS_2025", "pgram_jobs_new.xlsx"), index=False)  # Save the modified DataFrame to an Excel file
+        return new_df
 
         
-
     def shp_file_exists(su, photogrammetry_path):
         su_shapeFile_name = f"{su}_EPSG_32632.shp"
         su_shapefile_path = os.path.join(photogrammetry_path, "GIS_2025", "3D_SU_Shapefiles", su_shapeFile_name)
@@ -153,21 +151,46 @@ if __name__ == "__main__":
         df = df[~df['job_id'].isna() & (df['job_id'] != '')]
         df['job_id'] = [s.strip().split(' ')[-1] for s in df['job_id']]   # Ensure 'job_id' column is of string type
 
-        df = get_jobs_from_pgram_csv(df, os.path.join(PATH, "GIS_2025", "TARP 2025 Photogrammetry Job Tracking - Pgram Jobs.csv"))  # Example path to the CSV file
 
 
 
         return df
     
     df = import_filemaker_su_data("SUs for spatial sheets.xlsx")
-    # df.to_excel(os.path.join( "final.xlsx"), index=False)
-    print("succcessfully imported and modified the data")
+    df.to_excel(os.path.join(PATH, "GIS_2025", "df.xlsx"), index=False)  # Save the modified DataFrame to an Excel file
+    pgram_data = get_jobs_from_pgram_csv(os.path.join(PATH, "GIS_2025", "TARP 2025 Photogrammetry Job Tracking - Pgram Jobs.csv"))  # Example path to the CSV file
+
+    final_df = pd.DataFrame(columns=["SU", "Short Description", "Long Description", "job_id"])  # Create a new DataFrame to store the results
+
+    for index, row in pgram_data.iterrows():
+        su = f"SU_{row['SU']}"
+        job_id = row['job_id']
+        
+        description = ""
+        long_description = ""
+
+        # Check if the SU exists in the pgram_data DataFrame
+        if su in df['SU'].values:
+            # print(f"FOUND SU: {su} with Job ID: {job_id}")
+            description = df.loc[df['SU'] == su, 'Short Description'].values[0] if not df.loc[df['SU'] == su, 'Short Description'].empty else ""
+            long_description = df.loc[df['SU'] == su, 'Long Description'].values[0] if not df.loc[df['SU'] == su, 'Long Description'].empty else ""
+        else:
+            # pass
+            print(f"SU {su} not found in the DataFrame, skipping...", len(su))
+            # print(f"Available SUs: {[ x for x in df['SU'].unique() if '18' in x]}")  # Print available SUs for debugging
+            
+        final_df = pd.concat([final_df, pd.DataFrame({"SU": [su], "Short Description": [description], "Long Description": [long_description], "job_id": [job_id]})])  # Append the row to the new DataFrame
+    
+    # final_df.to_excel(os.path.join(PATH, "GIS_2025", "ready_sus.xlsx"), index=False)  # Save the modified DataFrame to an Excel file
+    # # df.to_excel(os.path.join( "final.xlsx"), index=False)
+    # print("succcessfully imported and modified the data")
+
+    df = final_df
 
     ready_sus_df = pd.DataFrame(columns=df.columns)  # Create a new DataFrame to store the results
     #check how many su tops exist for each su in the DataFrame
     count = 0
 
-    print("here", df.head())  # Display the first few rows of the DataFrame
     
 
     df_sus = df['SU'].unique()  # Get unique SU values from the DataFrame
@@ -179,9 +202,11 @@ if __name__ == "__main__":
 
     print(f"Total number of SU tops found: {count}")
     print(f"Total number of SUs ready for processing: {len(ready_sus_df)}")
+    print(f"Total number of SUs in the DataFrame: {len(df['SU'].unique())}")
+    print(f"Total number of SUs in the DataFrame: {len(df.drop_duplicates()['SU'])}")
 
 
-    ready_sus_df.to_excel(os.path.join(PATH, "GIS_2025", "ready_sus.xlsx"), index=False)  # Save the modified DataFrame to an Excel file
+    # ready_sus_df.to_excel(os.path.join(PATH, "GIS_2025", "ready_sus.xlsx"), index=False)  # Save the modified DataFrame to an Excel file
     # for index, [su, description, long_description, job_id] in ready_sus_df.iterrows():
     #     print(f"SU: {su}, Description: {description}, Long Description: {long_description}, Job ID: {job_id}")
 
