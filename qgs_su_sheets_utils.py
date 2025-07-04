@@ -480,7 +480,7 @@ class SUSheet():
         self.title = self.items_dict[title_placeholder]["obj"]
         self.description = self.items_dict['Description:']["obj"]
 
-        self.title.setText(f"{self.su_info['trench']} • {self.su_info['su'].replace("_", " ")}") # Replace underscores with spaces in the title
+        self.title.setText(f"{self.su_info['trench']} • {self.su_info['su'].replace('_', ' ')}") # Replace underscores with spaces in the title
         self.description.setText(self.su_info['description']) 
 
 
@@ -570,7 +570,6 @@ class SUSheet():
         zoomToLayerWithBufferAndScalebar(self.maps["Page 4"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
         active_layers = [self.layers_dict["contour_layer"], self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["dem_lower_layer"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["drone-flight"]]  # List of active layers for the overview map item
-        print("active layers for the DEM map item:", [layer.name() for layer in active_layers])
         self.maps["Page 1"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         self.maps["Page 4"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         #lock DEM map items
@@ -690,7 +689,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
     # CONTOUR_INTERVAL = 0.02
     su_shapeFile_name = f"{su}_EPSG_32632.shp"
-    su_shapefile_path = os.path.join("3D_SU_Shapefiles", su_shapeFile_name)  # Example shapefile name, change as needed
+    su_shapefile_path = os.path.join(photogrammetry_path, "GIS_2025", "3D_SU_Shapefiles", su_shapeFile_name)  # Example shapefile name, change as needed
     DEM_path = get_DEM_path(job_id)
     # DEM_path = os.path.join("DEM",f"Pgram_Job_{job_id}_{su.replace('_', '')}_dem.tif")
     su_sheet_trench_template_path = f"SU_Layout_Templates/SU_Template_{trench.split(' ')[1]}.qpt"
@@ -743,7 +742,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
         with HiddenPrints():
             create_SU_shp_file({
                 "obj_file": su_volume_path,
-                "output_file_path": os.path.join(photogrammetry_path, "AutomateRockMask", "3D_SU_Shapefiles"),
+                "output_file_path": os.path.join(photogrammetry_path, "GIS_2025", "3D_SU_Shapefiles"),
                 "su_number": int(su.split("_")[1]),
                 "year": year
             })
