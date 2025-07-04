@@ -40,7 +40,7 @@ YEAR = 2025
 
 # TOTAL_ITEMS = len(os.listdir(os.path.join(PATH, "Volumetrics_2025", "SU Top OBJs"))) + len(os.listdir(os.path.join(PATH, "Volumetrics_2025", "Trench 18000"))) + len(os.listdir(os.path.join(PATH, "Volumetrics_2025", "Trench 19000"))) 
 TOTAL_ITEMS = len(os.listdir(os.path.join(PATH, "Volumetrics_2025", "SU Top OBJs"))) 
-items_processed = len([f for f in os.listdir(os.path.join(PATH, "GIS_2025", "3D_SU_Shapefiles")) if f.endswith(".shp")])
+items_processed = len([f for f in os.listdir(os.path.join(PATH, "GIS_2025", "3D_SU_Shapefiles")) if f.endswith(".shp")]) // 2
 print(f"Total items to process: {TOTAL_ITEMS}")
 print(f"Total items already processed: {items_processed}")
 
