@@ -664,6 +664,27 @@ class SUSheet():
         exporter = QgsLayoutExporter(self.layout)
         exporter.exportToPdf(pdf_path, QgsLayoutExporter.PdfExportSettings())
 
+    def exportToImage(self, image_path):
+        """Exports the layout to an image file.
+        Args:
+            image_path (str): The path where the image will be saved."""
+        print("exporting layout to image...") if DEBUG else None
+
+        if not self.layout:
+            print("Layout is not initialized. Cannot export to image.")
+            return
+        
+        #export the layout to image
+        try:
+
+            exporter = QgsLayoutExporter(self.layout)
+            result  = exporter.exportToImage(self.layout.atlas(),  image_path, 'png', QgsLayoutExporter.ImageExportSettings())
+            print("Result of exportToImage:", result) if DEBUG else None
+        except Exception as e:
+            print(f"Failed to export layout to image: {e}") if DEBUG else None
+            return
+        print(f"Layout exported to {image_path}") if DEBUG else None
+
 
 
 
@@ -811,6 +832,9 @@ def generate_SU_Sheet(qgs, project, su, trench, job_id, year, description, pdf_p
     #generate the SU Sheet PDF
     su_sheet.generatePDF(pdf_path)  # Generate the PDF using the template
 
+    #this doesn't save 
+    # su_sheet.exportToImage(os.path.join(photogrammetry_path,"GIS_2025"))  # Export the layout to an image file
+
 
 
 
@@ -818,7 +842,7 @@ def generate_SU_Sheet(qgs, project, su, trench, job_id, year, description, pdf_p
 
     #UNCOMMENT TO SAVE THE PROJECT
     print("saving project...") if DEBUG else None
-    project.write()  # Save the project after adding the layer
+    project.write(pdf_path.replace('.pdf','.qgs'))  # Save the project after adding the layer
 
 
 
