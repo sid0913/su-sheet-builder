@@ -98,19 +98,17 @@ if __name__ == "__main__":
             trench = "Trench "+su[-5:-3]+"000"
             # description = f"This is {su} description specific"
 
-            su_sheet_pdf_path = os.path.join(PATH, "GIS_2025", "SU_Sheets", "SU_Sheet_PDFs",f"{su}.pdf)")
+            su_sheet_pdf_path = os.path.join("SU_Sheets","SU_Sheet_PDFs", trench, f"{su}.pdf")
             print(f"Generating SU Sheet for {su} in {trench} with Job ID {job_id}...")
 
-            if os.path.exists(os.path.join(PATH, "GIS_2025", su_sheet_pdf_path)):
+            if os.path.exists(su_sheet_pdf_path):
                 print(f"SU Sheet {su_sheet_pdf_path} already exists, skipping...")
-                with open(os.path.join(PATH, "GIS_2025", "error_log.txt"), "a") as error_file:
-                    error_file.write(f"{datetime.now(pytz.timezone('Europe/Rome')).strftime("%Y-%m-%d %H:%M:%S")} -- Error generating SU Sheet for {su}: {e}\n")
                 continue
 
             if not shp_file_exists(su, PATH):
                 print(f"Shapefile for {su} does not exist, skipping...")
                 continue
-            generate_SU_Sheet(qgs, project, su, trench, job_id, YEAR, description, os.path.join("SU_Sheets","SU_Sheet_PDFs", trench, f"{su}.pdf"), QGS_FILE_NAME, PATH)
+            generate_SU_Sheet(qgs, project, su, trench, job_id, YEAR, description, su_sheet_pdf_path, QGS_FILE_NAME, PATH)
             # generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
     
         except Exception as e:
