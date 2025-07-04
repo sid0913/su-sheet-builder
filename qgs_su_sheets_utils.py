@@ -192,7 +192,6 @@ def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
     ver = provider.hasStatistics(1, QgsRasterBandStats.All)
 
     stats = provider.bandStatistics(1, QgsRasterBandStats.All,extent, 0)
-    print("Type of renderer is", type(renderer))
 
     if ver is not False:
         print ("minimumValue = ", stats.minimumValue)
@@ -672,7 +671,7 @@ class SUSheet():
 
 
 
-def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path):
+def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path, contour_interval=0.02):
     """Generates a SU sheet for the given SU, trench, and job ID.
     Args:   
         qgs (QgsApplication): The QGIS application instance.
@@ -685,7 +684,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
         qgs_project_template (str): Path to the QGIS project template file.
         photogrammetry_path (str): Path to the photogrammetry files."""
 
-    CONTOUR_INTERVAL = 0.02
+    # CONTOUR_INTERVAL = 0.02
     su_shapeFile_name = f"{su}_EPSG_32632.shp"
     su_shapefile_path = os.path.join("3D_SU_Shapefiles", su_shapeFile_name)  # Example shapefile name, change as needed
     DEM_path = get_DEM_path(job_id)
@@ -730,7 +729,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
 
         #check if the Volumetrics su obj file exists
-        su_volume_path = os.path.join(photogrammetry_path, "Volumetrics_2025", trench, su+".obj")
+        su_volume_path = os.path.join(photogrammetry_path, "Volumetrics_2025", "SU Top OBJs", su+"_top.obj")
 
         if not os.path.exists(su_volume_path):
             raise FileNotFoundError(f"SU volume file {su_volume_path} not found. Please check the file path.")
@@ -793,7 +792,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     )
 
     #get contours from the clipped DEM
-    contour_file = get_contours(su+"_DEM.tif", su, interval=CONTOUR_INTERVAL)
+    contour_file = get_contours(su+"_DEM.tif", su, interval=contour_interval)
     print("Contour file generated:", contour_file)
 
 

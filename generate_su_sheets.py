@@ -23,8 +23,8 @@ if __name__ == "__main__":
 
 
     #this does work for skipping errors and keeping the script running, 
-    # for su,job_id in [("SU_17001", "707"), (SU, JobID), ("SU_18001", "708")]: #the last two don't work for some reason
-    for su,job_id in [("SU_17001", "707"), ("SU_18003", "711")]: #these work
+    for su,job_id in [("SU_17001", "707"), (SU, JobID), ("SU_18001", "708")]: #the last two don't work for some reason
+    # for su,job_id in [("SU_17001", "707"), ("SU_18003", "711")]: #these work
         try:
             trench = "Trench "+su[-5:-3]+"000"
             description = f"This is {su} description specific"
@@ -37,7 +37,7 @@ if __name__ == "__main__":
                 continue
 
 
-            generate_SU_Sheet(qgs, su, trench, job_id, YEAR, description, f"{su}.pdf", QGS_FILE_NAME, PATH)
+            generate_SU_Sheet(qgs, su, trench, job_id, YEAR, description, os.path.join("SU_Sheets","SU_Sheet_PDFs", f"{su}.pdf"), QGS_FILE_NAME, PATH)
             # generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
     
         except Exception as e:
