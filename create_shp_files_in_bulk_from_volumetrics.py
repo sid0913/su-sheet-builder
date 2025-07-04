@@ -1,7 +1,8 @@
 import sys
 sys.path = ['', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\qgis-ltr\\python', 'C:\\Program Files\\QGIS 3.40.8\\bin', 'C:\\Program Files\\QGIS 3.40.8\\bin\\python312.zip', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\DLLs', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32\\lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\Pythonwin']
 sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins")
-
+import pytz
+from datetime import datetime
 import os
 from generate_top_shp import create_SU_shp_file
 from qgis.core import QgsApplication
@@ -62,17 +63,24 @@ try:
                     print(f"ERROR: File {file_path} does not exist, skipping...")
                     continue
 
-                create_SU_shp_file({
-                    "obj_file": file_path,
-                    "output_file_path": os.path.join(PATH, "GIS_2025", "3D_SU_Shapefiles"),
-                    "su_number": int(su_obj.split(".")[0].split("_")[-1]),
-                    "year": YEAR
-                })
+                try:
+                    create_SU_shp_file({
+                        "obj_file": file_path,
+                        "output_file_path": os.path.join(PATH, "GIS_2025", "3D_SU_Shapefiles"),
+                        "su_number": int(su_obj.split(".")[0].split("_")[-1]),
+                        "year": YEAR
+                    })
 
-                items_processed += 1
-                percentage_complete = (items_processed / TOTAL_ITEMS) * 100
-                print(f"Processed {items_processed}/{TOTAL_ITEMS}: {su_obj}")
-                print(f"Processed {su_obj}... {percentage_complete:.2f}% complete")
+                    items_processed += 1
+                    percentage_complete = (items_processed / TOTAL_ITEMS) * 100
+                    print(f"Processed {items_processed}/{TOTAL_ITEMS}: {su_obj}")
+                    print(f"Processed {su_obj}... {percentage_complete:.2f}% complete")
+                except Exception as e:
+                    print(f"Error processing {su_obj}: {e}")
+                    # Log the error to a file
+                    with open(os.path.join(PATH, "AutomateRockMask", "shp_error_log.txt"), "a") as error_file:
+                        error_file.write(f"{datetime.now(pytz.timezone('Europe/Rome')).strftime("%Y-%m-%d %H:%M:%S")} -- Error processing {su_obj}: {e}\n")
+                    continue
 
             else:
                 continue
