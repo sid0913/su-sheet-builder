@@ -185,65 +185,86 @@ if __name__ == "__main__":
     # # df.to_excel(os.path.join( "final.xlsx"), index=False)
     # print("succcessfully imported and modified the data")
 
-    df = final_df
+    final_df
 
-    ready_sus_df = pd.DataFrame(columns=df.columns)  # Create a new DataFrame to store the results
+    ready_sus_df = pd.DataFrame(columns=final_df.columns)  # Create a new DataFrame to store the results
     #check how many su tops exist for each su in the DataFrame
     count = 0
 
     
 
-    df_sus = df['SU'].unique()  # Get unique SU values from the DataFrame
+    df_sus = final_df['SU'].unique()  # Get unique SU values from the DataFrame
     for index, su in enumerate(df_sus):
         top_file_path = os.path.join(PATH, "Volumetrics_2025", "SU Top OBJs", f"{su}_top.obj")
         if os.path.exists(top_file_path):
             count += 1
-            ready_sus_df = pd.concat([ready_sus_df, df[df['SU'] == su]])  # Append the row to the new DataFrame
+            ready_sus_df = pd.concat([ready_sus_df, final_df[final_df['SU'] == su]])  # Append the row to the new DataFrame
 
     print(f"Total number of SU tops found: {count}")
     print(f"Total number of SUs ready for processing: {len(ready_sus_df)}")
-    print(f"Total number of SUs in the DataFrame: {len(df['SU'].unique())}")
-    print(f"Total number of SUs in the DataFrame: {len(df.drop_duplicates()['SU'])}")
+    print(f"Total number of SUs in the DataFrame: {len(ready_sus_df['SU'].unique())}")
+    print(f"Total number of SUs in the DataFrame: {len(ready_sus_df['SU'])}")
+
+
+
+    def drop_duplicates_keep_last(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Removes duplicate rows from the DataFrame, keeping the ones with the highest index.
+
+        Parameters:
+        df (pd.DataFrame): The input DataFrame.
+
+        Returns:
+        pd.DataFrame: A DataFrame with duplicates dropped (keeping last occurrence).
+        """
+        return df[~df.duplicated(keep='last')]
+    
+    # ready_sus_df = drop_duplicates_keep_last(ready_sus_df)  # Remove duplicate rows, keeping the last occurrence
+    # print(f"Total number of SUs after dropping duplicates: {len(ready_sus_df)}")
+
+
+
+    # print(f"Total number of SUs in the DataFrame: {len(df.drop_duplicates()['SU'])}")
 
 
     # ready_sus_df.to_excel(os.path.join(PATH, "GIS_2025", "ready_sus.xlsx"), index=False)  # Save the modified DataFrame to an Excel file
     # for index, [su, description, long_description, job_id] in ready_sus_df.iterrows():
     #     print(f"SU: {su}, Description: {description}, Long Description: {long_description}, Job ID: {job_id}")
 
-    # qgs = start_QGS()  # Start the QGIS application
-    # project = load_project(QGS_FILE_NAME)
+    qgs = start_QGS()  # Start the QGIS application
+    project = load_project(QGS_FILE_NAME)
 
 
 
-    # start = time.time()
-    # #this does work for skipping errors and keeping the script running, 
-    # # for su,job_id in [("SU_17001", "707"), (SU, JobID), ("SU_18001", "708")]: 
-    # for index, [su, description, long_description, job_id] in ready_sus_df.iterrows():
-    # # for su,job_id in [("SU_17001", "707"), ("SU_18003", "711")]: #these work
-    #     try:
-    #         trench = "Trench "+su[-5:-3]+"000"
-    #         # description = f"This is {su} description specific"
+    start = time.time()
+    #this does work for skipping errors and keeping the script running, 
+    # for su,job_id in [("SU_17001", "707"), (SU, JobID), ("SU_18001", "708")]: 
+    for index, [su, description, long_description, job_id] in ready_sus_df.iterrows():
+    # for su,job_id in [("SU_17001", "707"), ("SU_18003", "711")]: #these work
+        try:
+            trench = "Trench "+su[-5:-3]+"000"
+            # description = f"This is {su} description specific"
 
-    #         su_sheet_pdf_path = os.path.join("SU_Sheets","SU_Sheet_PDFs", trench, f"{su}.pdf")
-    #         print(f"Generating SU Sheet for {su} in {trench} with Job ID {job_id}...")
+            su_sheet_pdf_path = os.path.join("SU_Sheets","SU_Sheet_PDFs", trench, f"{su}.pdf")
+            print(f"Generating SU Sheet for {su} in {trench} with Job ID {job_id}...")
 
-    #         if os.path.exists(su_sheet_pdf_path):
-    #             print(f"SU Sheet {su_sheet_pdf_path} already exists, skipping...")
-    #             continue
+            if os.path.exists(su_sheet_pdf_path):
+                print(f"SU Sheet {su_sheet_pdf_path} already exists, skipping...")
+                continue
 
-    #         if not shp_file_exists(su, PATH):
-    #             print(f"Shapefile for {su} does not exist, skipping...")
-    #             continue
-    #         generate_SU_Sheet(qgs, project, su, trench, job_id, YEAR, description, su_sheet_pdf_path, QGS_FILE_NAME, PATH)
-    #         # generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
+            if not shp_file_exists(su, PATH):
+                print(f"Shapefile for {su} does not exist, skipping...")
+                continue
+            generate_SU_Sheet(qgs, project, su, trench, job_id, YEAR, description, su_sheet_pdf_path, QGS_FILE_NAME, PATH)
+            # generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
     
-    #     except Exception as e:
-    #         print(f"Error generating SU Sheet: {e}")
-    #         #open error text file and write the error message
-    #         with open(os.path.join(PATH, "GIS_2025", "error_log.txt"), "a") as error_file:
-    #             error_file.write(f"{datetime.now(pytz.timezone('Europe/Rome')).strftime("%Y-%m-%d %H:%M:%S")} -- Error generating SU Sheet for {su}: {e}\n")
-    #         continue
-    # end = time.time()
-    # mins_elapsed = (end - start) / 60
-    # print(f"Time elapsed: {mins_elapsed:.2f} minutes")
-    # close_QGS(qgs)  # Close the QGIS application
+        except Exception as e:
+            print(f"Error generating SU Sheet: {e}")
+            #open error text file and write the error message
+            with open(os.path.join(PATH, "GIS_2025", "error_log.txt"), "a") as error_file:
+                error_file.write(f"{datetime.now(pytz.timezone('Europe/Rome')).strftime("%Y-%m-%d %H:%M:%S")} -- Error generating SU Sheet for {su}: {e}\n")
+            continue
+    end = time.time()
+    mins_elapsed = (end - start) / 60
+    print(f"Time elapsed: {mins_elapsed:.2f} minutes")
+    close_QGS(qgs)  # Close the QGIS application
