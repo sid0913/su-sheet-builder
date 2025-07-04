@@ -136,6 +136,7 @@ def get_high_contrast_min_max_values(dem_layer, shader):
 
     # Get the layer's data provider    
     provider = dem_layer.dataProvider()
+    print("here, this part works")
 
     # Get cumulative cut values (2% - 98% range often used for contrast)
     # This is often what creates the "good contrast" you see
@@ -170,6 +171,10 @@ def get_high_contrast_min_max_values(dem_layer, shader):
         if min_2_5_percent is not None and max_95_percent is not None:
             # print(f"2.5%-95% stretch - Min: {min_2_5_percent}, Max: {max_95_percent}")
             return min_2_5_percent, max_95_percent
+        else:
+            raise ValueError("Failed to calculate 2.5% and 95% cut points from histogram data.")
+    else:
+        raise ValueError("Histogram data is not valid. Cannot calculate high contrast min/max values.")
 
 
 def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
@@ -216,6 +221,7 @@ def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
     dem_layer.triggerRepaint()
 
     #makes the gradient high contrast by taking the 95% of the range to leave out the high elevations
+    print(get_high_contrast_min_max_values(dem_layer, raster_shader))
     contrast_min_value, contrast_max_value = get_high_contrast_min_max_values(dem_layer, raster_shader)  # Get high contrast min/max values
 
 
