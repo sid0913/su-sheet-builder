@@ -1,7 +1,8 @@
-from qgs_su_sheets_utils import start_QGS, generate_SU_Sheet, close_QGS
+from qgs_su_sheets_utils import start_QGS, generate_SU_Sheet, close_QGS, load_project
 import os 
 import pytz
 from datetime import datetime
+import time
 
 
 if __name__ == "__main__":
@@ -20,12 +21,14 @@ if __name__ == "__main__":
 
     
     qgs = start_QGS()  # Start the QGIS application
+    project = load_project(QGS_FILE_NAME)
 
 
     #this does work for skipping errors and keeping the script running, 
     for su,job_id in [(SU, JobID)]: #the last two don't work for some reason
     # for su,job_id in [("SU_17001", "707"), ("SU_18003", "711")]: #these work
         # try:
+        start = time.time()
         trench = "Trench "+su[-5:-3]+"000"
         description = f"This is {su} description specific"
 
@@ -36,10 +39,11 @@ if __name__ == "__main__":
             print(f"SU Sheet {su_sheet_pdf_path} already exists, skipping...")
             continue
 
-        print("These are the values being used:",   su, trench, job_id, YEAR, description, os.path.join("SU_Sheets","SU_Sheet_PDFs", f"{su}.pdf"), QGS_FILE_NAME, PATH)
-        generate_SU_Sheet(qgs, su, trench, job_id, YEAR, description, os.path.join("SU_Sheets","SU_Sheet_PDFs", f"{su}.pdf"), QGS_FILE_NAME, PATH)
+        generate_SU_Sheet(qgs, project, su, trench, job_id, YEAR, description, os.path.join("SU_Sheets","SU_Sheet_PDFs", f"{su}.pdf"), QGS_FILE_NAME, PATH)
         #     # generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
-    
+        end = time.time()
+        mins_elapsed = (end - start) / 60
+        print(f"Time elapsed: {mins_elapsed:.2f} minutes")
         # except Exception as e:
         #     print(f"Error generating SU Sheet: {e}")
         #     #open error text file and write the error message

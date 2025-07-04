@@ -21,6 +21,8 @@ from generate_top_shp import create_SU_shp_file
 
 #function to set up QGIS file by deleting existing layers and adding a drone flight layer
 def setupQGISFile(project, layers_dict):
+
+
     
     
     print("Clear existing project layers...")
@@ -37,6 +39,8 @@ def setupQGISFile(project, layers_dict):
     drone_flight_layer = QgsRasterLayer("GCP-Drone-Flight-2025.jpg", "GCP-Drone-Flight-2025")
     layers_dict["drone-flight"] = drone_flight_layer  # Store the drone flight layer in the dictionary
     project.addMapLayer(drone_flight_layer)  # Add the drone flight layer to the project
+
+
 
 #helper functions
 def add_layer(uri, name, project):
@@ -674,10 +678,11 @@ class SUSheet():
 
 
 
-def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path, contour_interval=0.02):
+def generate_SU_Sheet(qgs, project, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path, contour_interval=0.02):
     """Generates a SU sheet for the given SU, trench, and job ID.
     Args:   
         qgs (QgsApplication): The QGIS application instance.
+        project (QgsProject): The QGIS project instance.
         su (str): The SU name.
         trench (str): The trench name.
         job_id (str): The job ID that opens this SU
@@ -695,23 +700,6 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     su_sheet_trench_template_path = f"SU_Layout_Templates/SU_Template_{trench.split(' ')[1]}.qpt"
 
     layers_dict = {}
-
-
-
-
-
-
-    # Get the project instance
-    project = QgsProject.instance()
-
-    if not os.path.exists(qgs_project_template):
-        raise FileNotFoundError(f"Project file {qgs_project_template} not found. Please check the file path.")
-
-    print("Loading project...")
-    project.read(qgs_project_template)  # Load the project file
-    print("project",project.fileName())
-
-
 
 
     #adding it to the right trench and SU folder
@@ -867,6 +855,19 @@ def start_QGS():
     Processing.initialize()  # Initialize the Processing framework
 
     return qgs
+
+
+def load_project(qgs_project_template_path):
+    """Loads a QGIS project from the specified path."""
+    project = QgsProject.instance()
+
+    if not os.path.exists(qgs_project_template_path):
+        raise FileNotFoundError(f"Project file {qgs_project_template_path} not found. Please check the file path.")
+
+    print("Loading project...")
+    project.read(qgs_project_template_path)  # Load the project file
+    return project
+    
 
 def close_QGS(qgs):
     """Exits the QGIS application."""
