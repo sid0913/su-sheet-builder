@@ -136,7 +136,6 @@ def get_high_contrast_min_max_values(dem_layer, shader):
 
     # Get the layer's data provider    
     provider = dem_layer.dataProvider()
-    print("here, this part works")
 
     # Get cumulative cut values (2% - 98% range often used for contrast)
     # This is often what creates the "good contrast" you see
@@ -221,7 +220,6 @@ def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
     dem_layer.triggerRepaint()
 
     #makes the gradient high contrast by taking the 95% of the range to leave out the high elevations
-    print(get_high_contrast_min_max_values(dem_layer, raster_shader))
     contrast_min_value, contrast_max_value = get_high_contrast_min_max_values(dem_layer, raster_shader)  # Get high contrast min/max values
 
 
