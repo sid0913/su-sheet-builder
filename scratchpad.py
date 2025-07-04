@@ -32,14 +32,14 @@ if __name__ == "__main__":
         trench = "Trench "+su[-5:-3]+"000"
         description = f"This is {su} description specific"
 
-        su_sheet_pdf_path = os.path.join(PATH, "GIS_2025", "SU_Sheets", "SU_Sheet_PDFs",f"{su}.pdf)")
+        su_sheet_pdf_path = os.path.join("SU_Sheets","SU_Sheet_PDFs", f"{su}.pdf")
         print(f"Generating SU Sheet for {su} in {trench} with Job ID {job_id}...")
 
-        if os.path.exists(os.path.join(PATH, "GIS_2025", su_sheet_pdf_path)):
+        if os.path.exists(su_sheet_pdf_path):
             print(f"SU Sheet {su_sheet_pdf_path} already exists, skipping...")
             continue
 
-        generate_SU_Sheet(qgs, project, su, trench, job_id, YEAR, description, os.path.join("SU_Sheets","SU_Sheet_PDFs", f"{su}.pdf"), QGS_FILE_NAME, PATH)
+        generate_SU_Sheet(qgs, project, su, trench, job_id, YEAR, description, su_sheet_pdf_path, QGS_FILE_NAME, PATH)
         #     # generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
         end = time.time()
         mins_elapsed = (end - start) / 60
