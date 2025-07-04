@@ -50,7 +50,7 @@ print("QGIS Application started successfully.")
 
 try:
     for su_obj in os.listdir(os.path.join(PATH, "Volumetrics_2025", "SU Top OBJs")):
-        if su_obj.endswith(".obj"):
+        if su_obj.endswith(".obj") and su_obj.startswith("SU_"):
             file_path = os.path.join(PATH, "Volumetrics_2025", "SU Top OBJs", su_obj)
 
             su_num = su_obj.split('.')[0].split('_')[-2]
