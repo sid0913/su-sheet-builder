@@ -17,13 +17,17 @@ from processing.core.Processing import Processing
 from generate_top_shp import create_SU_shp_file
 
 
+#this decides whether to print logs
+DEBUG=False
 
 
 #function to set up QGIS file by deleting existing layers and adding a drone flight layer
 def setupQGISFile(project, layers_dict):
+
+
     
     
-    print("Clear existing project layers...")
+    print("Clear existing project layers...") if DEBUG else None
     # Get the list of all layers in the project
     layers = list(project.mapLayers().values())
 
@@ -31,24 +35,26 @@ def setupQGISFile(project, layers_dict):
     for layer in layers:
         project.removeMapLayer(layer)
 
-    print("Project cleared. Adding drone flight layer...")
+    print("Project cleared. Adding drone flight layer...") if DEBUG else None
     if not os.path.exists("GCP-Drone-Flight-2025.jpg"):
         raise FileNotFoundError("GCP-Drone-Flight-2025.jpg not found. Please check the file path.")
     drone_flight_layer = QgsRasterLayer("GCP-Drone-Flight-2025.jpg", "GCP-Drone-Flight-2025")
     layers_dict["drone-flight"] = drone_flight_layer  # Store the drone flight layer in the dictionary
     project.addMapLayer(drone_flight_layer)  # Add the drone flight layer to the project
 
+
+
 #helper functions
 def add_layer(uri, name, project):
     """Adds a Map layer to the QGIS project."""
-    print(f"Adding layer {name}...")
+    print(f"Adding layer {name}...") if DEBUG else None
     
     if not os.path.exists(uri):
         raise FileNotFoundError(f"Layer file {uri} not found. Please check the file path.")
     
     vlayer = QgsVectorLayer(uri, name, "ogr")
     project.addMapLayer(vlayer)
-    print("Layer added:", vlayer.name())
+    print("Layer added:", vlayer.name()) if DEBUG else None
     return vlayer
 
 
@@ -81,7 +87,7 @@ def get_DEM_path(job_id):
         # Check if the file matches the job ID pattern
         if f"Pgram_Job_{job_id}" in file and file.endswith(".tif"):
             dem_path = os.path.join("DEM", file)
-            print(f"Found DEM file: {dem_path}")
+            print(f"Found DEM file: {dem_path}") if DEBUG else None
             return dem_path
 
     #if no DEM file is found, raise an error
@@ -97,7 +103,7 @@ def add_ortho_photo(job_id, project, layers_dict):
         #check if it is a jpg file and then split the filename by '_' and if the second index is matches the job ID, then add the layer
         if file.endswith(".jpg") and file.split('_')[2] == job_id:
             ortho_photo_path = os.path.join("Orthos", file)
-            print("Adding ortho photo layer...")
+            print("Adding ortho photo layer...") if DEBUG else None
 
 
             # Create a QgsRasterLayer for the ortho photo
@@ -168,7 +174,7 @@ def get_high_contrast_min_max_values(dem_layer, shader):
                 break
         
         if min_2_5_percent is not None and max_95_percent is not None:
-            # print(f"2.5%-95% stretch - Min: {min_2_5_percent}, Max: {max_95_percent}")
+            print(f"2.5%-95% stretch - Min: {min_2_5_percent}, Max: {max_95_percent}") if DEBUG else None
             return min_2_5_percent, max_95_percent
         else:
             raise ValueError("Failed to calculate 2.5% and 95% cut points from histogram data.")
@@ -198,9 +204,9 @@ def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
     stats = provider.bandStatistics(1, QgsRasterBandStats.All,extent, 0)
 
     if ver is not False:
-        print ("minimumValue = ", stats.minimumValue)
+        print ("minimumValue = ", stats.minimumValue) if DEBUG else None
 
-        print ("maximumValue = ", stats.maximumValue)
+        print ("maximumValue = ", stats.maximumValue) if DEBUG else None
 
     if (stats.minimumValue < 0):
         min = 0  
@@ -254,7 +260,7 @@ def lockItem(item):
         item.storeCurrentLayerStyles()  # Store the current layer set for the overview map item, page 1
         item.setFollowVisibilityPreset(False) #disable updates from project state
         
-        print(f"Item {item.displayName()} locked.")
+        print(f"Item {item.displayName()} locked.") if DEBUG else None
     else:
         print("Item is None, cannot lock.")
 
@@ -319,9 +325,9 @@ def zoomToLayerWithBufferAndScalebar(item: QgsLayoutItemMap, layer: QgsMapLayer,
         scalebar.setMinimumBarWidth(desired_width_mm)
         scalebar.update()
 
-        print(f"Scalebar width set to {desired_width_mm:.2f} mm.")
+        print(f"Scalebar width set to {desired_width_mm:.2f} mm.") if DEBUG else None
 
-    print(f"Map item '{item.displayName()}' zoomed to layer '{layer.name()}' with {int(buffer_ratio * 100)}% buffer.")
+    print(f"Map item '{item.displayName()}' zoomed to layer '{layer.name()}' with {int(buffer_ratio * 100)}% buffer.") if DEBUG else None
 
 def clipRaster( input_raster, mask_layer, output_path):
     # Set parameters for the clip operation and save the output (without adding the layer to the project)
@@ -336,18 +342,18 @@ def clipRaster( input_raster, mask_layer, output_path):
     # Run the clip operation
     processing.run("gdal:cliprasterbymasklayer", clip_params)
 
-    print(f"Raster clipped successfully to {output_path}")
+    print(f"Raster clipped successfully to {output_path}") if DEBUG else None
 
 def get_contours(input_raster, su, interval=0.02):
     """Generates contours from a raster layer."""
 
     
 
-    print(f"Generating contours for {su} with interval {interval*100} cm...")
+    print(f"Generating contours for {su} with interval {interval*100} cm...") if DEBUG else None
     output_path = f"{su}_{int(interval*100)}cm.shp"  # Output shapefile for contours
 
     if os.path.exists(output_path):
-        print(f"Contour file {output_path} already exists.")
+        print(f"Contour file {output_path} already exists.") if DEBUG else None
         return output_path
 
     contour_params = {
@@ -362,7 +368,7 @@ def get_contours(input_raster, su, interval=0.02):
     # Run the contour generation
     processing.run("gdal:contour", contour_params)
 
-    print(f"Contours generated successfully and saved to {output_path}")
+    print(f"Contours generated successfully and saved to {output_path}") if DEBUG else None
     return output_path
 
 def add_contour(contour_file, project):
@@ -371,7 +377,7 @@ def add_contour(contour_file, project):
         contour_file (str): Path to the contour shapefile.
     Returns:
         QgsVectorLayer: The added contour layer."""
-    print(f"Adding contour layer from {contour_file}...")
+    print(f"Adding contour layer from {contour_file}...") if DEBUG else None
     contour_layer = QgsVectorLayer(contour_file, "Contours", "ogr")
     if not contour_layer.isValid():
         print("Failed to load contour layer.")
@@ -385,7 +391,7 @@ def add_contour(contour_file, project):
     
 
 
-    print("Contour layer added:", contour_layer.name())
+    print("Contour layer added:", contour_layer.name()) if DEBUG else None
     return contour_layer
 
 def add_DEM(DEM_path, project):
@@ -394,7 +400,7 @@ def add_DEM(DEM_path, project):
         DEM_path (str): Path to the DEM file.   
     Returns:
         QgsRasterLayer: The added DEM layer."""
-    print(f"Adding DEM layer from {DEM_path}...")
+    print(f"Adding DEM layer from {DEM_path}...") if DEBUG else None
 
     #this has the top 2D color gradient signifying the elevation
     dem_layer = QgsRasterLayer(DEM_path, "DEM Layer")
@@ -430,7 +436,7 @@ def add_DEM(DEM_path, project):
     project.addMapLayer(dem_lower_layer)
     project.addMapLayer(dem_layer)
 
-    print("DEM layer added:", dem_layer.name())
+    print("DEM layer added:", dem_layer.name()) if DEBUG else None
     return dem_layer, dem_lower_layer, elevation_stats
 
 #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
@@ -507,7 +513,7 @@ class SUSheet():
 
 
         #Overview map
-        print("Setting up Overview map item...")
+        print("Setting up Overview map item...") if DEBUG else None
 
         #TODO: turn on trench boundaries
         #TODO: turn on Trench Area contours
@@ -537,7 +543,7 @@ class SUSheet():
 
 
         #Ortho map
-        print("Setting up Ortho map item...")
+        print("Setting up Ortho map item...") if DEBUG else None
 
         self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
         self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
@@ -556,7 +562,7 @@ class SUSheet():
 
 
         #DEM map
-        print("Setting up DEM map item...")
+        print("Setting up DEM map item...") if DEBUG else None
         self.layers_dict["drone-flight"].setOpacity(1)
         self.layers_dict["dem_layer"].setOpacity(0.5)
         self.layers_dict["dem_lower_layer"].setOpacity(1)
@@ -594,7 +600,7 @@ class SUSheet():
         Args:
             template_path (str): The path to the .qpt template file.
         """
-        print(f"Loading layout template from {template_path}...")
+        print(f"Loading layout template from {template_path}...") if DEBUG else None
         project = QgsProject.instance()
         layout_name = os.path.splitext(os.path.basename(template_path))[0]
         layout = QgsPrintLayout(project)
@@ -614,10 +620,10 @@ class SUSheet():
             print(f"Failed to load layout template from {template_path}.")
             return None, None, None
 
-        print(f"Layout '{layout_name}' loaded successfully with {len(items)} items.")
+        print(f"Layout '{layout_name}' loaded successfully with {len(items)} items.") if DEBUG else None
 
 
-        print("Setting up layout properties...")
+        print("Setting up layout properties...") if DEBUG else None
 
         # print([( item.uuid(), item.displayName(), type(item).__name__) for item in items if type(item).__name__ == "QgsLayoutItemMap"])
         maps = [(item.displayName(), item) for item in items if type(item).__name__ == "QgsLayoutItemMap"]
@@ -674,10 +680,11 @@ class SUSheet():
 
 
 
-def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path, contour_interval=0.02):
+def generate_SU_Sheet(qgs, project, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path, contour_interval=0.02):
     """Generates a SU sheet for the given SU, trench, and job ID.
     Args:   
         qgs (QgsApplication): The QGIS application instance.
+        project (QgsProject): The QGIS project instance.
         su (str): The SU name.
         trench (str): The trench name.
         job_id (str): The job ID that opens this SU
@@ -697,23 +704,6 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     layers_dict = {}
 
 
-
-
-
-
-    # Get the project instance
-    project = QgsProject.instance()
-
-    if not os.path.exists(qgs_project_template):
-        raise FileNotFoundError(f"Project file {qgs_project_template} not found. Please check the file path.")
-
-    print("Loading project...")
-    project.read(qgs_project_template)  # Load the project file
-    print("project",project.fileName())
-
-
-
-
     #adding it to the right trench and SU folder
     #create SU folder if it doesn't exist
     root = project.layerTreeRoot()
@@ -722,13 +712,13 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     layers_dict["root"] = root  # Store the root in the dictionary
 
 
-    print("Setting up QGIS file...")
+    print("Setting up QGIS file...") if DEBUG else None
     setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
 
 
     #create the SU shp file if it doesn't exist
     if not os.path.exists(su_shapefile_path):
-        print(f"Creating SU shapefile for {su}... (takes a while, 5-10 minutes)")
+        print(f"Creating SU shapefile for {su}... (takes a while, 5-10 minutes)") if DEBUG else None
 
 
         #check if the Volumetrics su obj file exists
@@ -746,7 +736,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
                 "su_number": int(su.split("_")[1]),
                 "year": year
             })
-        print(f"SU shapefile {su_shapefile_path} created successfully.")
+        print(f"SU shapefile {su_shapefile_path} created successfully.") if DEBUG else None
 
 
     #add the ortho photo of the corresponing job id
@@ -754,19 +744,19 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
 
     #add a trench overview boundary layer
-    print("Adding trench overview boundary layer...")
+    print("Adding trench overview boundary layer...") if DEBUG else None
     trench_overview_layer = add_layer(f"{trench.replace(' ','_')}_Overview_Zoom_Rough_Boundary.shp", f"{trench} Overview Boundary", project)
     trench_overview_layer.setOpacity(0)  # make it transparent, since it only used for zooming in the overview map in the SU Sheet
     layers_dict[f"{trench} overview boundary"] = trench_overview_layer  # Store the trench overview boundary layer in the dictionary
 
     #add the trench boundaries and architecture 2025 layers
-    print("Adding trench boundaries layer...")
+    print("Adding trench boundaries layer...") if DEBUG else None
     trench_boundaries_layer = add_layer("TARP 2025 Trench Boundaries 6-1-2025.shp", "Trench Boundaries", project)
     trench_boundaries_layer.loadNamedStyle("Styles/Trench_outline_style.qml")  # Load the style for the trench boundaries layer
     layers_dict["trench-boundaries"] = trench_boundaries_layer  # Store the trench boundaries layer in the dictionary
 
 
-    print("Adding architecture 2025 layer...")
+    print("Adding architecture 2025 layer...") if DEBUG else None
     architecture_layer = add_layer("Architecture_2025.shp", "Architecture 2025", project)
     architecture_layer.loadNamedStyle("Styles/TARP_Architecture_Colored_Style_2025.qml")  # Load the style for the architecture layer
     layers_dict["architecture"] = architecture_layer  # Store the architecture layer in the dictionary 
@@ -779,7 +769,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     # Check if the SU Shape layer already exists in the SU folder
     # if project.mapLayersByName(SU_ShapeFile_name) is None:
     #     #add the layer to the SU folder
-    print("Adding SU shapefile layer...")
+    print("Adding SU shapefile layer...") if DEBUG else None
     su_shape_layer = add_layer(su_shapefile_path,su_shapeFile_name, project)
     layers_dict["SU_ShapeFile"] = su_shape_layer  # Store the layer in the dictionary
 
@@ -796,7 +786,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
     #get contours from the clipped DEM
     contour_file = get_contours(su+"_DEM.tif", su, interval=contour_interval)
-    print("Contour file generated:", contour_file)
+    print("Contour file generated:", contour_file) if DEBUG else None
 
 
 
@@ -815,7 +805,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     su_sheet = SUSheet(su_sheet_trench_template_path, su, trench, description, pdf_path, elevation_stats, layers_dict)
 
     #manipulate the layout items
-    print("Manipulating layout items...")
+    print("Manipulating layout items...") if DEBUG else None
 
 
     #generate the SU Sheet PDF
@@ -827,7 +817,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
 
     #UNCOMMENT TO SAVE THE PROJECT
-    print("saving project...")
+    print("saving project...") if DEBUG else None
     project.write()  # Save the project after adding the layer
 
 
@@ -861,12 +851,25 @@ def start_QGS():
 
     # Initialize QGIS Application
     qgs = QgsApplication([], False)
-    print("Intializing QGIS Application...")
+    print("Intializing QGIS Application...") 
     # Load providers
     qgs.initQgis()
     Processing.initialize()  # Initialize the Processing framework
 
     return qgs
+
+
+def load_project(qgs_project_template_path):
+    """Loads a QGIS project from the specified path."""
+    project = QgsProject.instance()
+
+    if not os.path.exists(qgs_project_template_path):
+        raise FileNotFoundError(f"Project file {qgs_project_template_path} not found. Please check the file path.")
+
+    print("Loading project...") if DEBUG else None
+    project.read(qgs_project_template_path)  # Load the project file
+    return project
+    
 
 def close_QGS(qgs):
     """Exits the QGIS application."""
