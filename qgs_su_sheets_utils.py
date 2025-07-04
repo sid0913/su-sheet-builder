@@ -2,30 +2,11 @@
 
 import sys
 
-# version = "3.36.2"  # Change this to your desired QGIS version
-# version = "3.40.8"  # Change this to your desired QGIS version
-
-# changes = {
-#     "3.36.2": {
-#         "install_path":"C:\\Program Files\\QGIS 3.36.2\\apps\\qgis\\python",
-#         "prefix_path": "C:\\Program Files\\QGIS 3.36.2",
-#     },
-#     "3.40.8": {
-#         "install_path":"C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python",
-#         "prefix_path": "C:\\Program Files\\QGIS 3.40.8",
-#     }
-# }
-# sys.path = [x for x in sys.path if 'Python312' not in x]  # Remove existing QGIS paths
-# sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\Python312\\DLLs") # issues with DLL
-# sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\Python312") # issues with DLL
-# sys.path.insert(0, "C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python") # issues with DLL
-# print(sys.path)
 
 #got the sys.path result of qgis's python-qgis-ltr.bat file (this is a python console)
 import sys
 sys.path = ['', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\qgis-ltr\\python', 'C:\\Program Files\\QGIS 3.40.8\\bin', 'C:\\Program Files\\QGIS 3.40.8\\bin\\python312.zip', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\DLLs', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32\\lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\Pythonwin']
 sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins")
-
 
 import os
 from qgis.core import QgsApplication, QgsRasterBandStats, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
@@ -35,19 +16,7 @@ import processing
 from processing.core.Processing import Processing
 from generate_top_shp import create_SU_shp_file
 
-# Supply path to qgis install location
-QgsApplication.setPrefixPath("C:\\Program Files\\QGIS 3.40.8", True)  
 
-
-PATH = "C:\\Users\\Photogrammetry"
-
-qgs = QgsApplication([], False)
-
-
-print("Intializing QGIS Application...")
-# Load providers
-qgs.initQgis()
-Processing.initialize()  # Initialize the Processing framework
 
 
 #function to set up QGIS file by deleting existing layers and adding a drone flight layer
@@ -68,10 +37,9 @@ def setupQGISFile(project, layers_dict):
     drone_flight_layer = QgsRasterLayer("GCP-Drone-Flight-2025.jpg", "GCP-Drone-Flight-2025")
     layers_dict["drone-flight"] = drone_flight_layer  # Store the drone flight layer in the dictionary
     project.addMapLayer(drone_flight_layer)  # Add the drone flight layer to the project
-    print("project layers after clearing:", [layer.name() for layer in project.mapLayers().values()])
 
 #helper functions
-def addLayer(uri, name):
+def add_layer(uri, name, project):
     """Adds a Map layer to the QGIS project."""
     print(f"Adding layer {name}...")
     
@@ -107,16 +75,28 @@ def setNoDataValue(layer):
     layer.triggerRepaint()
 
 
-def add_ortho_photo(JobID, project, layers_dict):
-    """Adds an ortho photo layer to the project based on the JobID."""
+def get_DEM_path(job_id):
+    """Returns the path to the DEM file based on the job ID."""
+    for file in os.listdir("DEM"):
+        # Check if the file matches the job ID pattern
+        if f"Pgram_Job_{job_id}" in file and file.endswith(".tif"):
+            dem_path = os.path.join("DEM", file)
+            print(f"Found DEM file: {dem_path}")
+            return dem_path
+
+    #if no DEM file is found, raise an error
+    raise FileNotFoundError(f"DEM file for job_id {job_id} not found. Please check the DEM/ directory.")
+
+
+def add_ortho_photo(job_id, project, layers_dict):
+    """Adds an ortho photo layer to the project based on the job_id."""
 
 
     for file in os.listdir("Orthos"):
 
         #check if it is a jpg file and then split the filename by '_' and if the second index is matches the job ID, then add the layer
-        if file.endswith(".jpg") and file.split('_')[2] == JobID:
+        if file.endswith(".jpg") and file.split('_')[2] == job_id:
             ortho_photo_path = os.path.join("Orthos", file)
-            print(f"Found ortho photo for Job {JobID}: {ortho_photo_path}")
             print("Adding ortho photo layer...")
 
 
@@ -142,7 +122,7 @@ def add_ortho_photo(JobID, project, layers_dict):
             return
         
     # If no ortho photo is found, raise an error
-    raise FileNotFoundError(f"No ortho photo found for Job {JobID} in the 'Orthos' directory.")
+    raise FileNotFoundError(f"No ortho photo found for Job {job_id} in the 'Orthos' directory.")
     
 
 
@@ -212,7 +192,6 @@ def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
     ver = provider.hasStatistics(1, QgsRasterBandStats.All)
 
     stats = provider.bandStatistics(1, QgsRasterBandStats.All,extent, 0)
-    print("Type of renderer is", type(renderer))
 
     if ver is not False:
         print ("minimumValue = ", stats.minimumValue)
@@ -355,13 +334,13 @@ def clipRaster( input_raster, mask_layer, output_path):
 
     print(f"Raster clipped successfully to {output_path}")
 
-def get_contours(input_raster, SU, interval=0.02):
+def get_contours(input_raster, su, interval=0.02):
     """Generates contours from a raster layer."""
 
     
 
-    print(f"Generating contours for {SU} with interval {interval*100} cm...")
-    output_path = f"{SU}_{int(interval*100)}cm.shp"  # Output shapefile for contours
+    print(f"Generating contours for {su} with interval {interval*100} cm...")
+    output_path = f"{su}_{int(interval*100)}cm.shp"  # Output shapefile for contours
 
     if os.path.exists(output_path):
         print(f"Contour file {output_path} already exists.")
@@ -382,7 +361,7 @@ def get_contours(input_raster, SU, interval=0.02):
     print(f"Contours generated successfully and saved to {output_path}")
     return output_path
 
-def addContour(contour_file):
+def add_contour(contour_file, project):
     """Adds contour layer in the project.
     Args:
         contour_file (str): Path to the contour shapefile.
@@ -405,7 +384,7 @@ def addContour(contour_file):
     print("Contour layer added:", contour_layer.name())
     return contour_layer
 
-def add_DEM(DEM_path):
+def add_DEM(DEM_path, project):
     """Adds a DEM layer to the project.
     Args:
         DEM_path (str): Path to the DEM file.   
@@ -483,8 +462,18 @@ class SUSheet():
         # print("the items_dict is", self.items_dict.keys())
         # print("the items_dict is", [(self.items_dict[key]["obj"].displayName(), self.items_dict[key]["obj"]) for key in self.items_dict.keys()])
 
+        #find the title and description items in the layout
 
-        self.title = self.items_dict['Trench 17000 • SU 17001']["obj"]
+        #find the placeholder text which differs by trench
+        # e.g. "Trench 17000 • SU 17001" for Trench 17000's qgs template
+        title_placeholder = ''
+        for key in self.items_dict.keys():
+            if f'{trench} • ' in key:
+                title_placeholder = key
+                break
+
+
+        self.title = self.items_dict[title_placeholder]["obj"]
         self.description = self.items_dict['Description:']["obj"]
 
         self.title.setText(f"{self.su_info['trench']} • {self.su_info['su'].replace("_", " ")}") # Replace underscores with spaces in the title
@@ -666,163 +655,179 @@ class SUSheet():
         exporter = QgsLayoutExporter(self.layout)
         exporter.exportToPdf(pdf_path, QgsLayoutExporter.PdfExportSettings())
 
-# QGS_FILE_NAME="TARP_2025_SU_Template_new_test.qgs"
-
-# QGS_FILE_NAME="TARP_SU_Sheets_2025_test.qgs"
-QGS_FILE_NAME="TARP_SU_Sheets_2025_test_updating_v2.qgs"
-
-SU = "SU_17001"  # Example SU name, change as needed
-TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
-JobID = "707"
-SU_ShapeFile_name = f"{SU}_EPSG_32632.shp"
-SU_ShapeFile = os.path.join("3D_SU_Shapefiles",SU_ShapeFile_name)  # Example shapefile name, change as needed
-DEM_path = os.path.join("DEM","Pgram_Job_707_SU17001_dem.tif")
-CONTOUR_INTERVAL = 0.02
-TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
-SU_SHEET_TRENCH_TEMPLATE_PATH = "SU_Layout_Templates/SU_Template_17000.qpt"
-YEAR = "2025"  # Example year, change as needed
-layers_dict = {}
 
 
 
-SU_data = {
-    "SU": SU,
-    "TRENCH": TRENCH,
-    "JobID": JobID,
-    "description": "SU 17001 description specific",  # Add a description for the SU
-    "SU_ShapeFile_name": SU_ShapeFile_name,
-    "SU_ShapeFile": SU_ShapeFile,
-    "DEM_path": DEM_path,
-}
-
-# Get the project instance
-project = QgsProject.instance()
-
-if not os.path.exists(QGS_FILE_NAME):
-    raise FileNotFoundError(f"Project file {QGS_FILE_NAME} not found. Please check the file path.")
-
-print("Loading project...")
-project.read(QGS_FILE_NAME)  # Load the project file
-print("project",project.fileName())
+# SU_data = {
+#     "SU": SU,
+#     "TRENCH": TRENCH,
+#     "JobID": JobID,
+#     "description": "SU 17001 description specific",  # Add a description for the SU
+#     "SU_ShapeFile_name": SU_ShapeFile_name,
+#     "SU_ShapeFile": SU_ShapeFile,
+#     "DEM_path": DEM_path,
+# }
 
 
 
 
-#adding it to the right trench and SU folder
-#create SU folder if it doesn't exist
-root = project.layerTreeRoot()
-print("These are the initial project layers",[item.name() for item in root.children()])
+def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path, contour_interval=0.02):
+    """Generates a SU sheet for the given SU, trench, and job ID.
+    Args:   
+        qgs (QgsApplication): The QGIS application instance.
+        su (str): The SU name.
+        trench (str): The trench name.
+        job_id (str): The job ID that opens this SU
+        year (int): The year of the SU.
+        description (str): Description of the SU.
+        pdf_path (str): Path to save the generated PDF.
+        qgs_project_template (str): Path to the QGIS project template file.
+        photogrammetry_path (str): Path to the photogrammetry files."""
 
-layers_dict["root"] = root  # Store the root in the dictionary
+    # CONTOUR_INTERVAL = 0.02
+    su_shapeFile_name = f"{su}_EPSG_32632.shp"
+    su_shapefile_path = os.path.join("3D_SU_Shapefiles", su_shapeFile_name)  # Example shapefile name, change as needed
+    DEM_path = get_DEM_path(job_id)
+    # DEM_path = os.path.join("DEM",f"Pgram_Job_{job_id}_{su.replace('_', '')}_dem.tif")
+    su_sheet_trench_template_path = f"SU_Layout_Templates/SU_Template_{trench.split(' ')[1]}.qpt"
+
+    layers_dict = {}
 
 
-print("Setting up QGIS file...")
-setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
 
 
-#create the SU shp file if it doesn't exist
-if not os.path.exists(SU_ShapeFile):
-    print(f"Creating SU shapefile for {SU}... (takes a while, 5-10 minutes)")
+
+
+    # Get the project instance
+    project = QgsProject.instance()
+
+    if not os.path.exists(qgs_project_template):
+        raise FileNotFoundError(f"Project file {qgs_project_template} not found. Please check the file path.")
+
+    print("Loading project...")
+    project.read(qgs_project_template)  # Load the project file
+    print("project",project.fileName())
+
+
+
+
+    #adding it to the right trench and SU folder
+    #create SU folder if it doesn't exist
+    root = project.layerTreeRoot()
+
+    #get the root directory of the project
+    layers_dict["root"] = root  # Store the root in the dictionary
+
+
+    print("Setting up QGIS file...")
+    setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
+
+
+    #create the SU shp file if it doesn't exist
+    if not os.path.exists(su_shapefile_path):
+        print(f"Creating SU shapefile for {su}... (takes a while, 5-10 minutes)")
+
+
+        #check if the Volumetrics su obj file exists
+        su_volume_path = os.path.join(photogrammetry_path, "Volumetrics_2025", "SU Top OBJs", su+"_top.obj")
+
+        if not os.path.exists(su_volume_path):
+            raise FileNotFoundError(f"SU volume file {su_volume_path} not found. Please check the file path.")
+
+        #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
+        #hide logs
+        with HiddenPrints():
+            create_SU_shp_file({
+                "obj_file": su_volume_path,
+                "output_file_path": os.path.join(photogrammetry_path, "AutomateRockMask", "3D_SU_Shapefiles"),
+                "su_number": int(su.split("_")[1]),
+                "year": year
+            })
+        print(f"SU shapefile {su_shapefile_path} created successfully.")
+
+
+    #add the ortho photo of the corresponing job id
+    add_ortho_photo(job_id, project, layers_dict)
+
+
+    #add a trench overview boundary layer
+    print("Adding trench overview boundary layer...")
+    trench_overview_layer = add_layer(f"{trench.replace(' ','_')}_Overview_Zoom_Rough_Boundary.shp", f"{trench} Overview Boundary", project)
+    trench_overview_layer.setOpacity(0)  # make it transparent, since it only used for zooming in the overview map in the SU Sheet
+    layers_dict[f"{trench} overview boundary"] = trench_overview_layer  # Store the trench overview boundary layer in the dictionary
+
+    #add the trench boundaries and architecture 2025 layers
+    print("Adding trench boundaries layer...")
+    trench_boundaries_layer = add_layer("TARP 2025 Trench Boundaries 6-1-2025.shp", "Trench Boundaries", project)
+    trench_boundaries_layer.loadNamedStyle("Styles/Trench_outline_style.qml")  # Load the style for the trench boundaries layer
+    layers_dict["trench-boundaries"] = trench_boundaries_layer  # Store the trench boundaries layer in the dictionary
+
+
+    print("Adding architecture 2025 layer...")
+    architecture_layer = add_layer("Architecture_2025.shp", "Architecture 2025", project)
+    architecture_layer.loadNamedStyle("Styles/TARP_Architecture_Colored_Style_2025.qml")  # Load the style for the architecture layer
+    layers_dict["architecture"] = architecture_layer  # Store the architecture layer in the dictionary 
+
+
+
+
+
+
+    # Check if the SU Shape layer already exists in the SU folder
+    # if project.mapLayersByName(SU_ShapeFile_name) is None:
+    #     #add the layer to the SU folder
+    print("Adding SU shapefile layer...")
+    su_shape_layer = add_layer(su_shapefile_path,su_shapeFile_name, project)
+    layers_dict["SU_ShapeFile"] = su_shape_layer  # Store the layer in the dictionary
+
+
+
+    # # print("clipping DEM to the mask layer...")
+    # # Print the trench folder name
+    # #clip DEM to the mask layer
+    clipRaster(
+        input_raster=DEM_path,
+        mask_layer=su_shapefile_path,
+        output_path=su+"_DEM.tif"
+    )
+
+    #get contours from the clipped DEM
+    contour_file = get_contours(su+"_DEM.tif", su, interval=contour_interval)
+    print("Contour file generated:", contour_file)
+
+
+
+    dem_layer, dem_lower_layer, elevation_stats = add_DEM(su+"_DEM.tif", project)
+    layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
+    layers_dict["dem_lower_layer"] =  dem_lower_layer # Store the layer in the dictionary
+
+    #add the contour layer to the SU folder
+    contour_layer = add_contour(contour_file, project)
+    layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionary
+
     #CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
     #hide logs
-    with HiddenPrints():
-        create_SU_shp_file({
-            "obj_file": os.path.join(PATH, "Volumetrics_2025", TRENCH, SU+".obj"),
-            "output_file_path": os.path.join(PATH, "AutomateRockMask", "3D_SU_Shapefiles"),
-            "su_number": int(SU.split("_")[1]),
-            "year": YEAR
-        })
-    print(f"SU shapefile {SU_ShapeFile} created successfully.")
-
-
-#add the ortho photo of the corresponing job id
-add_ortho_photo(JobID, project, layers_dict)
-
-
-#add a trench overview boundary layer
-print("Adding trench overview boundary layer...")
-trench_overview_layer = addLayer(f"{TRENCH.replace(' ','_')}_Overview_Zoom_Rough_Boundary.shp", f"{TRENCH} Overview Boundary")
-trench_overview_layer.setOpacity(0)  # make it transparent, since it only used for zooming in the overview map in the SU Sheet
-layers_dict[f"{TRENCH} overview boundary"] = trench_overview_layer  # Store the trench overview boundary layer in the dictionary
-
-#add the trench boundaries and architecture 2025 layers
-print("Adding trench boundaries layer...")
-trench_boundaries_layer = addLayer("TARP 2025 Trench Boundaries 6-1-2025.shp", "Trench Boundaries")
-trench_boundaries_layer.loadNamedStyle("Styles/Trench_outline_style.qml")  # Load the style for the trench boundaries layer
-layers_dict["trench-boundaries"] = trench_boundaries_layer  # Store the trench boundaries layer in the dictionary
-
-
-print("Adding architecture 2025 layer...")
-architecture_layer = addLayer("Architecture_2025.shp", "Architecture 2025")
-architecture_layer.loadNamedStyle("Styles/TARP_Architecture_Colored_Style_2025.qml")  # Load the style for the architecture layer
-layers_dict["architecture"] = architecture_layer  # Store the architecture layer in the dictionary 
-
-
-
-
-
-
-# Check if the SU Shape layer already exists in the SU folder
-# if project.mapLayersByName(SU_ShapeFile_name) is None:
-#     #add the layer to the SU folder
-print("Adding SU shapefile layer...")
-su_shape_layer = addLayer(SU_ShapeFile,SU_ShapeFile_name)
-layers_dict["SU_ShapeFile"] = su_shape_layer  # Store the layer in the dictionary
-
-
-
-# # print("clipping DEM to the mask layer...")
-# # Print the trench folder name
-# #clip DEM to the mask layer
-clipRaster(
-    input_raster=DEM_path,
-    mask_layer=SU_ShapeFile,
-    output_path=SU+"_DEM.tif"
-)
-
-#get contours from the clipped DEM
-contour_file = get_contours(SU+"_DEM.tif", SU, interval=CONTOUR_INTERVAL)
-print("Contour file generated:", contour_file)
-
-
-
-dem_layer, dem_lower_layer, elevation_stats = add_DEM(SU+"_DEM.tif")
-layers_dict["dem_layer"] =  dem_layer # Store the layer in the dictionary
-layers_dict["dem_lower_layer"] =  dem_lower_layer # Store the layer in the dictionary
-
-#add the contour layer to the SU folder
-contour_layer = addContour(contour_file)
-layers_dict["contour_layer"] =  contour_layer # Store the layer in the dictionary
-
-#CITATION: https://stackoverflow.com/questions/8391411/how-to-block-calls-to-print
-#hide logs
-with HiddenPrints():
-    #create an SU Sheet
-    su_sheet = SUSheet(SU_SHEET_TRENCH_TEMPLATE_PATH, SU, TRENCH, SU_data["description"], TEMPLATE_PDF_PATH, elevation_stats, layers_dict)
+    # with HiddenPrints():
+        #create an SU Sheet
+    su_sheet = SUSheet(su_sheet_trench_template_path, su, trench, description, pdf_path, elevation_stats, layers_dict)
 
     #manipulate the layout items
     print("Manipulating layout items...")
 
 
     #generate the SU Sheet PDF
-    su_sheet.generatePDF(TEMPLATE_PDF_PATH)  # Generate the PDF using the template
+    su_sheet.generatePDF(pdf_path)  # Generate the PDF using the template
 
 
 
 
 
 
-#UNCOMMENT TO SAVE THE PROJECT
-print("saving project...")
-project.write()  # Save the project after adding the layer
+    #UNCOMMENT TO SAVE THE PROJECT
+    print("saving project...")
+    project.write()  # Save the project after adding the layer
 
-# Write your code here to load some layers, use processing
-# algorithms, etc.
 
-# Finally, exitQgis() is called to remove the
-# provider and layer registries from memory
-print("Exiting QGIS Application...")
-qgs.exitQgis()  
 
 
 
@@ -836,3 +841,48 @@ qgs.exitQgis()
 # print(os.listdir(project.absoluteFilePath()))
 
 
+
+ 
+
+
+
+
+
+#this is where QGS is installed
+QGS_PROGRAM_PATH = "C:\\Program Files\\QGIS 3.40.8"
+
+def start_QGS():
+    """Initializes the QGIS application and sets up the environment."""
+    # Supply path to qgis install location
+    QgsApplication.setPrefixPath(QGS_PROGRAM_PATH, True) 
+
+    # Initialize QGIS Application
+    qgs = QgsApplication([], False)
+    print("Intializing QGIS Application...")
+    # Load providers
+    qgs.initQgis()
+    Processing.initialize()  # Initialize the Processing framework
+
+    return qgs
+
+def close_QGS(qgs):
+    """Exits the QGIS application."""
+    print("Exiting QGIS Application...")
+    qgs.exitQgis()
+
+# qgs = start_QGS()  # Start the QGIS application
+
+# # Generate the SU Sheet
+# try:
+#     # generate_SU_Sheet(qgs, SU, TRENCH, JobID, YEAR, DESCRIPTION, TEMPLATE_PDF_PATH, QGS_FILE_NAME, PATH)
+#     generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
+#     print("SU Sheet generated successfully.")
+# except Exception as e:
+#     print(f"Error generating SU Sheet: {e}")
+
+
+
+
+# # Exit QGIS Application
+# print("Exiting QGIS Application...")
+# qgs.exitQgis()
