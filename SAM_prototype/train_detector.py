@@ -29,6 +29,8 @@ def main():
         degrees=5.0, scale=0.3, fliplr=0.5, flipud=0.5,
         mosaic=1.0, close_mosaic=20,
         box=7.5, cls=0.5,
+        # gentler, smoother schedule (small dataset): lower LR + warmup + cosine
+        optimizer="AdamW", lr0=0.001, lrf=0.01, cos_lr=True, warmup_epochs=5,
         verbose=True,
     )
     metrics = model.val(data=DATA, imgsz=1024, device=0)
