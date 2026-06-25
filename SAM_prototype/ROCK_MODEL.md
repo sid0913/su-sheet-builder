@@ -68,7 +68,8 @@ Scripts (committed):
 | `prep_yolo_dataset.py` | Build the 1-class YOLO detection dataset from `Architecture_{2023,2024,2025}.shp` over their orthos. Keeps all types; writes `types.json`. |
 | `train_detector.py` | Train YOLOv8m (single class). |
 | `finetune_sam.py` / `train_multiyear.py` | Fine-tune the SAM mask decoder (box-prompted) on the stones. |
-| `run_detector_sam.py` | **The model runner**: `python run_detector_sam.py <ortho> <out.gpkg>`. |
+| `run_rock_mask.py` | **Unified runner / toggle** (all 3 models): `python run_rock_mask.py --model {yolo_sam,rgb_sam,rgb_dem_sam} <ortho> <out.gpkg> [--dem DEM]`. |
+| `run_detector_sam.py` | Legacy single-model runner (yolo_sam only), superseded by `run_rock_mask.py`. |
 | `predict_viz.py` | Render detector predictions vs ground truth. |
 | `build_2025_detector_project.py` / `build_2026_project.py` | Build QGIS projects to view results. |
 
@@ -142,3 +143,41 @@ it segmenting vegetation / open ground.
 - **Sparse/selective human labels** both deflate the detector's mAP and the
   IoU-match metric (it finds correct stones the humans never labelled).
 - More labelled data + LoRA fine-tuning of the SAM image encoder would lift IoU.
+
+---
+
+## 8. The three models & how `rgb_dem_sam` was generated
+
+`run_rock_mask.py` exposes three interchangeable models behind `--model`. All share
+ViT-H + the same fine-tuned `sam_decoder_multiyear.pth`, WarpedVRT reprojection,
+1024/768 overlap tiling, interior-seam dropping, raw-checkpoint, and IoU/containment
+dedup. They differ only in the proposal source and the SAM input:
+
+| model | proposes via | SAM input | needs DEM |
+|---|---|---|---|
+| `yolo_sam` | YOLO detector boxes | RGB | no |
+| `rgb_sam` | automatic point grid | RGB | no |
+| `rgb_dem_sam` | automatic point grid | **RGB + hillshade blend** | **yes** |
+
+**`rgb_dem_sam` (the DEM-fusion model).** Per tile: read the co-registered DEM for the
+tile's footprint (resampled to 1024², nodata filled with the tile median), compute a
+**Horn hillshade** (azimuth 315°, altitude 45°, cell = ortho pixel size), then feed SAM
+`0.5*RGB + 0.5*hillshade` instead of RGB. Everything downstream is identical to `rgb_sam`.
+The DEM is exported from the Metashape elevation model (UTM 32N, 0.01 m) over the trench
+region; it covers only that crop, so `rgb_dem_sam` is valid only where the DEM exists.
+
+**Why it exists / provenance.** The `worktree-dem-fusion` experiment tested whether adding
+height helps SAM separate adjacent stones. It does **not** beat plain RGB:
+
+| metric (2025 stones) | RGB | fused (RGB+hillshade) |
+|---|---|---|
+| base SAM, box-prompted mean IoU | 0.619 | 0.629 (≈ noise) |
+| fine-tuned decoder, held-out IoU | **0.747** | 0.742 |
+| automatic (segment-everything) recall @IoU.5 | **0.221** | 0.179 |
+
+So `rgb_dem_sam` is retained as a **selectable option for comparison**, not because it
+wins. Blending height into a frozen-encoder SAM dilutes the RGB texture SAM relies on;
+the height signal would more plausibly help as a *native* extra encoder channel (untried)
+or in the detector front-end, not as an RGB blend. The throwaway experiment scripts
+(U-Net RGBH, rgb-vs-fused fine-tune, AMG patch eval) are not kept — their metrics live in
+this table and in project memory.
