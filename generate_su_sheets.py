@@ -1,38 +1,57 @@
 from qgs_su_sheets_utils import start_QGS, generate_SU_Sheet, close_QGS
-import os 
+import os
+import json
 import pytz
 from datetime import datetime
 
 
+def _report_progress(processed, total, label=""):
+    """Write per-SU progress for the dashboard's determinate bar (atomic, best-effort)."""
+    try:
+        with open("progress.json.tmp", "w") as f:
+            f.write(json.dumps({"processed": processed, "total": total, "label": label}))
+        os.replace("progress.json.tmp", "progress.json")
+    except OSError:
+        pass
+
+
 if __name__ == "__main__":
-    QGS_FILE_NAME="TARP_SU_Sheets_2025_test_updating_v2.qgs"
+    QGS_FILE_NAME="TARP_SU_Sheets_2026.qgs"
     PATH = "C:\\Users\\Photogrammetry"
 
 
-    #placeholder values
-    SU = "SU_19001"  # Example SU name, change as needed
-    TRENCH = "Trench "+SU[-5:-3]+"000"  # Extract trench number from SU name
-    JobID = "709"
-    TEMPLATE_PDF_PATH = "new_layout.pdf"  # Path to the template PDF file, change as needed
-    YEAR = "2025"  # Example year, change as needed
-    DESCRIPTION = f"This is {SU} description "  # Add a description for the SU
-    
+    # Batch input written by the dashboard's Create-SU-Sheet button (one run for all SUs).
+    INPUT_FILE = "su_sheets_input.json"
+    if not os.path.exists(INPUT_FILE):
+        raise RuntimeError(
+            f"No '{INPUT_FILE}' found in {os.getcwd()}. This script is driven by the dashboard's "
+            f"Create-SU-Sheet button, which writes that file before launching. "
+            f"Run it from the dashboard, not directly."
+        )
+    with open(INPUT_FILE, "r") as f:
+        _su_input = json.load(f)
+    YEAR = str(_su_input.get("year", ""))
+    work = [(item["su"], item["job_id"]) for item in _su_input.get("items", [])]
+    if not work:
+        raise RuntimeError(f"'{INPUT_FILE}' contains no SU items to process.")
+
 
     
     qgs = start_QGS()  # Start the QGIS application
 
+    total = len(work)
+    _report_progress(0, total)
 
-    #this does work for skipping errors and keeping the script running, 
-    for su,job_id in [("SU_17001", "707"), (SU, JobID), ("SU_18001", "708")]: #the last two don't work for some reason
-    # for su,job_id in [("SU_17001", "707"), ("SU_18003", "711")]: #these work
+    for done, (su, job_id) in enumerate(work, start=1):
+        _report_progress(done, total, su)
         try:
             trench = "Trench "+su[-5:-3]+"000"
             description = f"This is {su} description specific"
 
-            su_sheet_pdf_path = os.path.join(PATH, "AutomateRockMask", "SU_Sheets", "SU_Sheet_PDFs",f"{su}.pdf)")
+            su_sheet_pdf_path = os.path.join(PATH, "AutomateRockMask", "SU_Sheets", "SU_Sheet_PDFs", f"{su}.pdf")
             print(f"Generating SU Sheet for {su} in {trench} with Job ID {job_id}...")
 
-            if os.path.exists(os.path.join(PATH, "AutomateRockMask", su_sheet_pdf_path)):
+            if os.path.exists(su_sheet_pdf_path):
                 print(f"SU Sheet {su_sheet_pdf_path} already exists, skipping...")
                 continue
 
