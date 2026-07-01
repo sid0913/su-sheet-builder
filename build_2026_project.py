@@ -9,7 +9,7 @@ from qgis.core import (
 )
 
 REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
-ORTHO = os.path.join(REPO, "2026_GCP_Mapping.tif")
+ORTHO = os.path.join(REPO, "2026_GCP_Mapping.vrt")
 PRED = os.path.join(REPO, "SAM_prototype", "sam_architecture_2026_detector.gpkg")
 PROJ = os.path.join(REPO, "SAM_2026_detector.qgs")
 

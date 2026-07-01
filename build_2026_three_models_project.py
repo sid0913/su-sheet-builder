@@ -11,7 +11,7 @@ from qgis.core import (QgsApplication, QgsProject, QgsRasterLayer, QgsVectorLaye
 
 REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
 SAMP = os.path.join(REPO, "SAM_prototype")
-ORTHO = os.path.join(REPO, "2026_GCP_Mapping.tif")
+ORTHO = os.path.join(REPO, "2026_GCP_Mapping.vrt")
 PROJ = os.path.join(REPO, "SAM_2026_three_models.qgs")
 LAYERS = [  # (gpkg, title, outline rgba)
     (os.path.join(SAMP, "sam_architecture_2026_detector.gpkg"),

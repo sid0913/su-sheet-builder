@@ -1,23 +1,14 @@
 
 
 import sys
+
+
+#got the sys.path result of qgis's python-qgis-ltr.bat file (this is a python console)
+import sys
+sys.path = ['', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\qgis-ltr\\python', 'C:\\Program Files\\QGIS 3.40.8\\bin', 'C:\\Program Files\\QGIS 3.40.8\\bin\\python312.zip', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\DLLs', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32\\lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\Pythonwin']
+sys.path.append("C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins")
+
 import os
-
-
-# QGIS's bundled interpreter paths, copied from qgis's python-qgis-ltr.bat console.
-# PREPEND these (don't replace sys.path) so the script's own directory stays importable
-# — otherwise `from generate_top_shp import create_SU_shp_file` below fails.
-_QGIS_PATHS = ['C:\\PROGRA~1\\QGIS34~1.8\\apps\\qgis-ltr\\python', 'C:\\Program Files\\QGIS 3.40.8\\bin', 'C:\\Program Files\\QGIS 3.40.8\\bin\\python312.zip', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\DLLs', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\win32\\lib', 'C:\\PROGRA~1\\QGIS34~1.8\\apps\\Python312\\Lib\\site-packages\\Pythonwin', 'C:\\Program Files\\QGIS 3.40.8\\apps\\qgis-ltr\\python\\plugins']
-for _p in reversed(_QGIS_PATHS):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
-# Make sure this file's own directory (where generate_top_shp.py lives) is importable,
-# regardless of the current working directory the dashboard launches us from.
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-if _SCRIPT_DIR not in sys.path:
-    sys.path.insert(0, _SCRIPT_DIR)
-
 from qgis.core import QgsApplication, QgsRasterBandStats, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
 from PyQt5.QtXml import QDomDocument
 from PyQt5.QtGui import QFont
@@ -26,39 +17,10 @@ from processing.core.Processing import Processing
 from generate_top_shp import create_SU_shp_file
 
 
-# ---------------------------------------------------------------------------
-# Per-year input data.
-#
-# Most year-specific inputs follow a simple "{name}_{year}" naming convention and
-# are built inline from the `year` argument threaded through generate_SU_Sheet():
-#   - GIS_{year}/3D_SU_Shapefiles
-#   - Volumetrics_{year}/SU Top OBJs
-#
-# Inputs that DON'T follow a clean pattern (different base name and/or file
-# extension between years) live in this explicit per-year table instead.
-# ---------------------------------------------------------------------------
-YEAR_CONFIG = {
-    "2025": {
-        "drone_flight": "GCP-Drone-Flight-2025.jpg",
-        "architecture": "Architecture_2025.shp",
-        "trench_boundaries": "TARP 2025 Trench Boundaries 6-1-2025.shp",
-    },
-    "2026": {
-        # edited + georeferenced GCP mapping image (VRT wraps the PNG: EPSG:32632 +
-        # overviews) — replaces last year's GCP-flight jpg / the raw .tif
-        "drone_flight": "2026_GCP_Mapping.vrt",
-        # SAM detector output stands in for a hand-drawn architecture layer
-        "architecture": "SAM_prototype/sam_architecture_2026_detector.shp",
-        "trench_boundaries": "TARP 2026 Trench Boundaries.shp",
-    },
-}
-
-# Architecture polygon styling is shared across years.
-ARCHITECTURE_STYLE = "Styles/TARP_Architecture_Colored_Style_2025_2026.qml"
 
 
 #function to set up QGIS file by deleting existing layers and adding a drone flight layer
-def setupQGISFile(project, layers_dict, year):
+def setupQGISFile(project, layers_dict):
     
     
     print("Clear existing project layers...")
@@ -70,11 +32,9 @@ def setupQGISFile(project, layers_dict, year):
         project.removeMapLayer(layer)
 
     print("Project cleared. Adding drone flight layer...")
-    drone_flight_file = YEAR_CONFIG[year]["drone_flight"]
-    if not os.path.exists(drone_flight_file):
-        raise FileNotFoundError(f"{drone_flight_file} not found. Please check the file path.")
-    drone_flight_name = os.path.splitext(os.path.basename(drone_flight_file))[0]
-    drone_flight_layer = QgsRasterLayer(drone_flight_file, drone_flight_name)
+    if not os.path.exists("GCP-Drone-Flight-2025.jpg"):
+        raise FileNotFoundError("GCP-Drone-Flight-2025.jpg not found. Please check the file path.")
+    drone_flight_layer = QgsRasterLayer("GCP-Drone-Flight-2025.jpg", "GCP-Drone-Flight-2025")
     layers_dict["drone-flight"] = drone_flight_layer  # Store the drone flight layer in the dictionary
     project.addMapLayer(drone_flight_layer)  # Add the drone flight layer to the project
 
@@ -115,28 +75,28 @@ def setNoDataValue(layer):
     layer.triggerRepaint()
 
 
-def get_DEM_path(job_id, dem_dir):
-    """Returns the path to the DEM file based on the job ID. Scans dem_dir."""
-    for file in os.listdir(dem_dir):
+def get_DEM_path(job_id):
+    """Returns the path to the DEM file based on the job ID."""
+    for file in os.listdir("DEM"):
         # Check if the file matches the job ID pattern
         if f"Pgram_Job_{job_id}" in file and file.endswith(".tif"):
-            dem_path = os.path.join(dem_dir, file)
+            dem_path = os.path.join("DEM", file)
             print(f"Found DEM file: {dem_path}")
             return dem_path
 
     #if no DEM file is found, raise an error
-    raise FileNotFoundError(f"DEM file for job_id {job_id} not found. Please check {dem_dir}.")
+    raise FileNotFoundError(f"DEM file for job_id {job_id} not found. Please check the DEM/ directory.")
 
 
-def add_ortho_photo(job_id, project, layers_dict, ortho_dir):
-    """Adds an ortho photo layer to the project based on the job_id. Scans ortho_dir."""
+def add_ortho_photo(job_id, project, layers_dict):
+    """Adds an ortho photo layer to the project based on the job_id."""
 
 
-    for file in os.listdir(ortho_dir):
+    for file in os.listdir("Orthos"):
 
         #check if it is a jpg file and then split the filename by '_' and if the second index is matches the job ID, then add the layer
         if file.endswith(".jpg") and file.split('_')[2] == job_id:
-            ortho_photo_path = os.path.join(ortho_dir, file)
+            ortho_photo_path = os.path.join("Orthos", file)
             print("Adding ortho photo layer...")
 
 
@@ -162,7 +122,7 @@ def add_ortho_photo(job_id, project, layers_dict, ortho_dir):
             return
         
     # If no ortho photo is found, raise an error
-    raise FileNotFoundError(f"No ortho photo found for Job {job_id} in {ortho_dir}.")
+    raise FileNotFoundError(f"No ortho photo found for Job {job_id} in the 'Orthos' directory.")
     
 
 
@@ -728,14 +688,9 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
         photogrammetry_path (str): Path to the photogrammetry files."""
 
     # CONTOUR_INTERVAL = 0.02
-    year = str(year)  # normalise so it can key YEAR_CONFIG and build "{name}_{year}" paths
     su_shapeFile_name = f"{su}_EPSG_32632.shp"
-    gis_dir = os.path.join(photogrammetry_path, f"GIS_{year}")  # per-year data root
-    su_shapefile_path = os.path.join(gis_dir, "3D_SU_Shapefiles", su_shapeFile_name)  # Example shapefile name, change as needed
-    # 2026 onward: DEMs/orthos live under GIS_{year}/{DEM,Orthos}
-    dem_dir = os.path.join(gis_dir, "DEM")
-    ortho_dir = os.path.join(gis_dir, "Orthos")
-    DEM_path = get_DEM_path(job_id, dem_dir)
+    su_shapefile_path = os.path.join(photogrammetry_path, "GIS_2025", "3D_SU_Shapefiles", su_shapeFile_name)  # Example shapefile name, change as needed
+    DEM_path = get_DEM_path(job_id)
     # DEM_path = os.path.join("DEM",f"Pgram_Job_{job_id}_{su.replace('_', '')}_dem.tif")
     su_sheet_trench_template_path = f"SU_Layout_Templates/SU_Template_{trench.split(' ')[1]}.qpt"
 
@@ -768,7 +723,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
 
     print("Setting up QGIS file...")
-    setupQGISFile(project, layers_dict, year)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
+    setupQGISFile(project, layers_dict)  # Set up the QGIS file by clearing existing layers and adding the drone flight layer
 
 
     #create the SU shp file if it doesn't exist
@@ -777,7 +732,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
 
         #check if the Volumetrics su obj file exists
-        su_volume_path = os.path.join(photogrammetry_path, f"Volumetrics_{year}", "SU Top OBJs", su+"_top.obj")
+        su_volume_path = os.path.join(photogrammetry_path, "Volumetrics_2025", "SU Top OBJs", su+"_top.obj")
 
         if not os.path.exists(su_volume_path):
             raise FileNotFoundError(f"SU volume file {su_volume_path} not found. Please check the file path.")
@@ -787,7 +742,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
         with HiddenPrints():
             create_SU_shp_file({
                 "obj_file": su_volume_path,
-                "output_file_path": os.path.join(photogrammetry_path, f"GIS_{year}", "3D_SU_Shapefiles"),
+                "output_file_path": os.path.join(photogrammetry_path, "GIS_2025", "3D_SU_Shapefiles"),
                 "su_number": int(su.split("_")[1]),
                 "year": year
             })
@@ -795,7 +750,7 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
 
 
     #add the ortho photo of the corresponing job id
-    add_ortho_photo(job_id, project, layers_dict, ortho_dir)
+    add_ortho_photo(job_id, project, layers_dict)
 
 
     #add a trench overview boundary layer
@@ -804,17 +759,17 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     trench_overview_layer.setOpacity(0)  # make it transparent, since it only used for zooming in the overview map in the SU Sheet
     layers_dict[f"{trench} overview boundary"] = trench_overview_layer  # Store the trench overview boundary layer in the dictionary
 
-    #add the trench boundaries and architecture layers
+    #add the trench boundaries and architecture 2025 layers
     print("Adding trench boundaries layer...")
-    trench_boundaries_layer = add_layer(YEAR_CONFIG[year]["trench_boundaries"], "Trench Boundaries", project)
+    trench_boundaries_layer = add_layer("TARP 2025 Trench Boundaries 6-1-2025.shp", "Trench Boundaries", project)
     trench_boundaries_layer.loadNamedStyle("Styles/Trench_outline_style.qml")  # Load the style for the trench boundaries layer
     layers_dict["trench-boundaries"] = trench_boundaries_layer  # Store the trench boundaries layer in the dictionary
 
 
-    print(f"Adding architecture {year} layer...")
-    architecture_layer = add_layer(YEAR_CONFIG[year]["architecture"], f"Architecture {year}", project)
-    architecture_layer.loadNamedStyle(ARCHITECTURE_STYLE)  # Load the style for the architecture layer
-    layers_dict["architecture"] = architecture_layer  # Store the architecture layer in the dictionary
+    print("Adding architecture 2025 layer...")
+    architecture_layer = add_layer("Architecture_2025.shp", "Architecture 2025", project)
+    architecture_layer.loadNamedStyle("Styles/TARP_Architecture_Colored_Style_2025_2026.qml")  # Load the style for the architecture layer (renamed from _2025)
+    layers_dict["architecture"] = architecture_layer  # Store the architecture layer in the dictionary 
 
 
 
