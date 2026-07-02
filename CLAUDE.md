@@ -1,4 +1,8 @@
-# AutomateRockMask — project notes
+# AutomateSuSheetCreation — project notes
+
+> Repo renamed from **AutomateRockMask** (2026). It covers two things: **SU-sheet PDF
+> generation** (the primary pipeline — see "SU Sheet generation pipeline" below) and
+> **rock-mask / architecture auto-digitizing** research (the SAM/YOLO section that follows).
 
 Automated generation of archaeological **SU sheets** (QGIS PDF reports) and
 research into **auto-digitizing the stone-architecture layer** from drone orthos
@@ -77,3 +81,109 @@ Notes:
   which no model assigns yet.
 - Legacy per-model scripts (`run_detector_sam.py`, `run_detector_sam_2026.py`) still
   work but are superseded by `run_rock_mask.py`.
+
+---
+
+## SU Sheet generation pipeline
+
+The other half of this repo: generating per-SU QGIS **PDF "SU sheets"**. Two files —
+`generate_su_sheets.py` (driver) → `qgs_su_sheets_utils.py` (all QGIS logic). Normally
+driven by the **tarp-lab dashboard**'s *Create SU Sheet* button, not run by hand.
+
+### How a run works
+1. The dashboard writes `su_sheets_input.json` (`{"year", "items":[{"su","job_id"}]}`)
+   into the repo dir and launches the driver under **QGIS's bundled Python** via
+   `C:\Program Files\QGIS 3.40.8\bin\python-qgis-ltr.bat`. The `sv` CUDA venv cannot run it.
+2. `generate_su_sheets.py` loops the items. Per SU it derives
+   `trench = "Trench " + su[-5:-3] + "000"` (so `SU_22035` → `Trench 22000`); `job_id` is the
+   SU's **top-pgram** Metashape job number. It emits `progress.json` per SU (dashboard bar),
+   wraps each SU in try/except → `error_log.txt`, and **skips any SU whose
+   `Volumetrics_{year}/{SU}.pdf` already exists** — to regenerate, delete/move the old PDF first.
+3. `generate_SU_Sheet()` loads the season project `TARP_SU_Sheets_{year}.qgs`, clears & rebuilds
+   all layers (ortho, DEM+contours, SU shapefile, architecture, trench boundaries, overview-zoom),
+   then `SUSheet` loads `SU_Layout_Templates/SU_Template_{trench}.qpt`, frames the 4 map pages,
+   exports the PDF to `Volumetrics_{year}/{SU}.pdf`, and `project.write()`s the project back
+   (why each season gets its own `.qgs`).
+
+### Draw-order invariant (don't regress)
+Each map's stack is set explicitly via `setLayers` (index 0 = top) in `_setup_map_page()`:
+**trench-boundaries always above architecture**; architecture directly below the SU-top layer and
+directly above the drone imagery (the ortho on the Ortho map, the drone-flight raster on the DEM
+map). The per-page order **opacities → SU style → zoom+scalebar → setLayers → lock** is
+load-bearing — locking freezes each map before the next page mutates shared layer opacities.
+
+### Running / regenerating by hand
+From the repo dir: stage `su_sheets_input.json`, move aside any existing target PDFs, then
+`"C:\Program Files\QGIS 3.40.8\bin\python-qgis-ltr.bat" generate_su_sheets.py`. ~A few minutes per SU.
+
+### New-season rollover (`YYYY`)
+Adding a season = one `YEAR_CONFIG` entry + data files in place + trench templates. `year` is threaded
+through `generate_SU_Sheet()`; most paths derive from it, the rest live in **`YEAR_CONFIG`** (top of
+`qgs_su_sheets_utils.py`).
+
+1. **Archive last season** (frozen runnable copy): `cp generate_su_sheets.py generate_su_sheets_<last>.py`
+   and `cp qgs_su_sheets_utils.py qgs_su_sheets_utils_<last>.py`; in the archived driver, repoint the
+   import to the archived utils. **These `*_<year>.py` files are intentional archives — do not delete.**
+2. **Driver**: `YEAR="YYYY"`; `QGS_FILE_NAME="TARP_SU_Sheets_YYYY.qgs"` (copy any existing project — it's
+   cleared/rebuilt on read then written back); replace the SU/job list (the dashboard normally writes it).
+3. **`YEAR_CONFIG["YYYY"]`**: `drone_flight`, `architecture`, `trench_boundaries` — the three inputs whose
+   names don't follow the `{name}_{year}` pattern.
+4. **Data in place**:
+   - `GIS_YYYY/3D_SU_Shapefiles/` — auto-built from the OBJ on first run; **requires Blender + the
+     BlenderGIS addon** (`generate_top_shp.py` shells out to Blender headless).
+   - `Volumetrics_YYYY/SU Top OBJs/<SU>_top.obj` (input). `Volumetrics_YYYY/` is **also the output dir**
+     for the generated PDFs (auto-created).
+   - `GIS_YYYY/Orthos/` — per-job `.jpg`, matched on the exact digits after `Job_` (regex, tolerates a
+     trailing `_SU…` suffix — e.g. both `Pgram_Job_798.jpg` and `Pgram_Job_784_SU22001.jpg`).
+   - `GIS_YYYY/DEM/` — per-job `.tif`, matched the same way.
+5. **Trench boundaries**: merge the per-trench clipping boundaries into one 2D-Polygon EPSG:32632
+   shapefile with an integer `Trench` field, named `TARP YYYY Trench Boundaries.shp` (via `ogr2ogr`; see
+   git history for the exact commands). **To change one trench mid-season**: replace that record's geometry
+   in the merged file and refresh `Trench_{t}_Overview_Zoom_Rough_Boundary.shp` (a copy of the clipping
+   boundary), then regenerate that trench's SUs.
+6. **Trench templates**: one `SU_Layout_Templates/SU_Template_{trench}.qpt` per trench (copy one, swap the
+   layout `name=` and the title text — extents/UUIDs are overridden at runtime). Picked automatically by
+   trench number.
+7. **Overview-zoom boundaries** (repo root, one per trench, NOT year-threaded):
+   `Trench_{t}_Overview_Zoom_Rough_Boundary.shp` — a copy of the trench clipping boundary; frames the
+   Overview map at buffer 0 (exact extent).
+7b. **Drone-flight background**: 2026 switched from the raw `.tif` to an edited PNG wrapped in a
+   georeferenced **`.vrt`** (EPSG:32632 + overviews). Co-locate `*_GCP_Mapping.{vrt,png,png.ovr,pgw,prj}`
+   in the repo root, point `drone_flight` at the `.vrt`, and set the same `.vrt` as `ORTHO` in the SAM
+   `build_*_project.py`. Earlier seasons used a plain `.jpg`; either works.
+8. **Sanity check**: `"C:\Program Files\QGIS 3.40.8\apps\Python312\python.exe" -m py_compile
+   generate_su_sheets.py qgs_su_sheets_utils.py`. QGIS Python is **3.12** (the driver uses 3.12-only
+   nested f-strings, so the 3.9 `sv` venv rejects it). On Git Bash the `/c/Program Files/...` form works.
+
+### Per-season asset inventory
+| Asset | Convention / source | Selected by |
+|---|---|---|
+| SU shapefiles | `GIS_{year}/3D_SU_Shapefiles/<SU>_EPSG_32632.shp` (Blender-built from OBJ) | `year` |
+| SU Top OBJs | `Volumetrics_{year}/SU Top OBJs/<SU>_top.obj` | `year` |
+| SU sheet PDFs (output) | `Volumetrics_{year}/<SU>.pdf` | `year` |
+| Orthos | `GIS_{year}/Orthos/…Job_{job}….jpg` | job number (regex) |
+| DEMs | `GIS_{year}/DEM/…Job_{job}….tif` | job number (regex) |
+| Drone-flight background | `.vrt` (2026+) or `.jpg`, repo root | `YEAR_CONFIG[...]["drone_flight"]` |
+| Architecture polygons | no fixed pattern; layer `Type` must match a QML category | `YEAR_CONFIG[...]["architecture"]` |
+| Trench boundaries (merged) | `TARP {year} Trench Boundaries.shp` | `YEAR_CONFIG[...]["trench_boundaries"]` |
+| Architecture style | shared across years | `ARCHITECTURE_STYLE` |
+| SU styles (per page) | `Styles/SU_Pink / Ortho_SU_view_yellow_outline / SU_black_outline.qml` | `STYLE_SU_*` |
+| Trench templates | `SU_Layout_Templates/SU_Template_{trench}.qpt` | trench # |
+| Overview-zoom boundary | `Trench_{trench}_Overview_Zoom_Rough_Boundary.shp` (repo root) | trench # |
+| Base project | `TARP_SU_Sheets_{year}.qgs` | `QGS_FILE_NAME` (driver) |
+
+### Hardcoded values to check on a machine/tooling change
+- `QGS_PROGRAM_PATH` and the `_QGIS_PATHS` list (`qgs_su_sheets_utils.py`) + the launcher/Python-3.12
+  paths above — bump on a QGIS upgrade; also `scripts.qgis_launcher` / `scripts.create_su_sheet*` in the
+  dashboard `config.yaml`.
+- `PATH = "C:\Users\Photogrammetry"` in the driver; the repo-name path in `error_log.txt`,
+  `create_shp_files_in_bulk_from_volumetrics.py`, and the `build_*_project.py` `REPO=` constants.
+- Site constants `DELTA_X=452000`, `DELTA_Y=4413000`, EPSG:32632 in `generate_top_shp.py` (Tharros /
+  UTM 32N — change only if the site or zone changes).
+
+### Known quirks
+- The template item is misspelled **`Scalebar Overivew Page 1`**; the code matches that spelling — fix
+  both or neither.
+- Page 4's DEM map reuses **`Scalebar Overview Page 2`** (there is no `Scalebar DEM Page 4` in the
+  template) — verify it doesn't mis-size the page-2 scalebar before "fixing".
+- `bandStatistics()` / `hasStatistics()` are deprecated in QGIS 3.40 but still valid; revisit on upgrade.
