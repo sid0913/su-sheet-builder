@@ -19,9 +19,8 @@ _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if _SCRIPT_DIR not in sys.path:
     sys.path.insert(0, _SCRIPT_DIR)
 
-from qgis.core import QgsApplication, QgsRasterBandStats, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle, QgsProject
+from qgis.core import QgsApplication, QgsRasterBandStats, QgsRasterRange, QgsRectangle, QgsLayoutItemScaleBar, QgsMapLayer, QgsLayoutItemMap, QgsLayoutExporter, QgsReadWriteContext, QgsProject, QgsPrintLayout, QgsVectorLayer, QgsRasterLayer, QgsRasterShader, QgsColorRampShader, QgsSingleBandPseudoColorRenderer, QgsStyle
 from PyQt5.QtXml import QDomDocument
-from PyQt5.QtGui import QFont
 import processing
 from processing.core.Processing import Processing
 from generate_top_shp import create_SU_shp_file
@@ -56,6 +55,11 @@ YEAR_CONFIG = {
 
 # Architecture polygon styling is shared across years.
 ARCHITECTURE_STYLE = "Styles/TARP_Architecture_Colored_Style_2025_2026.qml"
+
+# SU-shapefile styles, swapped onto the SU layer per page type (Overview / Ortho / DEM).
+STYLE_SU_OVERVIEW = "Styles/SU_Pink.qml"
+STYLE_SU_ORTHO = "Styles/Ortho_SU_view_yellow_outline.qml"
+STYLE_SU_DEM = "Styles/SU_black_outline.qml"
 
 
 #function to set up QGIS file by deleting existing layers and adding a drone flight layer
@@ -116,11 +120,19 @@ def setNoDataValue(layer):
     layer.triggerRepaint()
 
 
+def _file_matches_job(filename, job_id):
+    """True if `filename`'s Pgram job number (the digits right after "Job_") equals
+    job_id, ignoring any trailing "_SU..." suffix. Shared by the DEM and ortho lookups
+    so both match on the exact job number rather than a substring — a plain
+    `"Pgram_Job_{job_id}" in filename` test would wrongly match 784 against 7840."""
+    m = re.search(r"Job_(\d+)", filename)
+    return m is not None and m.group(1) == str(job_id)
+
+
 def get_DEM_path(job_id, dem_dir):
     """Returns the path to the DEM file based on the job ID. Scans dem_dir."""
     for file in os.listdir(dem_dir):
-        # Check if the file matches the job ID pattern
-        if f"Pgram_Job_{job_id}" in file and file.endswith(".tif"):
+        if file.endswith(".tif") and _file_matches_job(file, job_id):
             dem_path = os.path.join(dem_dir, file)
             print(f"Found DEM file: {dem_path}")
             return dem_path
@@ -135,28 +147,14 @@ def add_ortho_photo(job_id, project, layers_dict, ortho_dir):
 
     for file in os.listdir(ortho_dir):
 
-        # Match the job number that follows "Job_" in the filename, regardless of any
-        # trailing "_SU..." suffix. Filenames vary: "Pgram_Job_801.jpg" (no suffix) and
-        # "Pgram_Job_791_SU21001.jpg" (with suffix) must both resolve to their job id.
-        # The old `file.split('_')[2]` broke on the no-suffix form (it yielded "801.jpg").
-        m = re.search(r"Job_(\d+)", file)
-        if file.lower().endswith(".jpg") and m and m.group(1) == str(job_id):
+        # Match on the exact Pgram job number, tolerating a trailing "_SU..." suffix:
+        # both "Pgram_Job_801.jpg" and "Pgram_Job_791_SU21001.jpg" must resolve.
+        if file.lower().endswith(".jpg") and _file_matches_job(file, job_id):
             ortho_photo_path = os.path.join(ortho_dir, file)
             print("Adding ortho photo layer...")
 
-
             # Create a QgsRasterLayer for the ortho photo
             ortho_layer = QgsRasterLayer(ortho_photo_path, f"Ortho")
-            # provider = ortho_layer.dataProvider()
-
-            # result  = provider.setNoDataValue(1, 0) #first one is referred to band number
-
-            # if result:
-            #     print(f"NoData value set successfully for {ortho_layer.name()}")
-            # else:
-            #     print(f"Failed to set NoData value for {ortho_layer.name()}") 
-
-            # ortho_layer.triggerRepaint()
 
             #get rid of the white space around the ortho photo
             setNoDataValue(ortho_layer)  # Set NoData value for the ortho layer
@@ -171,11 +169,10 @@ def add_ortho_photo(job_id, project, layers_dict, ortho_dir):
     
 
 
-def get_high_contrast_min_max_values(dem_layer, shader):
+def get_high_contrast_min_max_values(dem_layer):
     """Calculates high contrast min/max values for a DEM layer using various methods. This helps create a high-contrast color ramp for the DEM layer.
     Args:
         dem_layer (QgsRasterLayer): The DEM layer to analyze.
-        shader (QgsRasterShader): The raster shader for the DEM layer.
     Returns:
         tuple: A tuple containing the high contrast min and max values."""
 
@@ -247,13 +244,6 @@ def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
 
         print ("maximumValue = ", stats.maximumValue)
 
-    if (stats.minimumValue < 0):
-        min = 0  
-
-    else: 
-        min= stats.minimumValue
-    
-    
     ramp_shader = QgsColorRampShader(min_elevation, max_elevation, color_ramp)
     ramp_shader.classifyColorRamp()# Add this line
     raster_shader = QgsRasterShader()
@@ -265,7 +255,7 @@ def make_dem_color_ramp_high_contrast(dem_layer, min_elevation, max_elevation):
     dem_layer.triggerRepaint()
 
     #makes the gradient high contrast by taking the 95% of the range to leave out the high elevations
-    contrast_min_value, contrast_max_value = get_high_contrast_min_max_values(dem_layer, raster_shader)  # Get high contrast min/max values
+    contrast_min_value, contrast_max_value = get_high_contrast_min_max_values(dem_layer)  # Get high contrast min/max values
 
 
 
@@ -302,16 +292,6 @@ def lockItem(item):
         print(f"Item {item.displayName()} locked.")
     else:
         print("Item is None, cannot lock.")
-
-# def zoomToLayer(item, layer):
-#     """Zooms the specified item to the extent of the given layer."""
-
-#     if item and layer:
-#         #zoom while keeping the layout item size the same 
-#         item.setExtent(layer.extent())  # Set the extent of the overview map item to the layer's extent
-#         print(f"Item {item.displayName()} zoomed to layer {layer.name()}.")
-#     else:
-#         print("Item or layer is None, cannot zoom.")
 
 
 def zoomToLayerWithBufferAndScalebar(item: QgsLayoutItemMap, layer: QgsMapLayer,
@@ -551,84 +531,54 @@ class SUSheet():
 
 
 
-        #Overview map
-        print("Setting up Overview map item...")
+        # Each page type frames the same layers differently. Order inside a page type is
+        # load-bearing: opacities -> SU style -> zoom+scalebar -> setLayers (draw order)
+        # -> lock, done one page type at a time, because locking freezes each map's render
+        # state before the next page type mutates the shared layer opacities.
+        # Draw-order invariant (setLayers index 0 = top): trench-boundaries above
+        # architecture; architecture directly below the SU top layer and directly above
+        # the drone imagery.
+        L = self.layers_dict
+        overview_boundary = L[f"{self.su_info['trench']} overview boundary"]
 
-        #TODO: turn on trench boundaries
-        #TODO: turn on Trench Area contours
-        self.layers_dict["drone-flight"].setOpacity(0)  # Set the opacity of the DEM layer
-        self.layers_dict["dem_layer"].setOpacity(0)  # Set the opacity of the DEM layer
-        self.layers_dict["contour_layer"].setOpacity(0)  # make the contour layer invisible in the layout
-        self.layers_dict["ortho_photo"].setOpacity(0)  # Set the opacity of the ortho photo layer
+        # Overview: no drone-imagery layer, so the "above drone imagery" rule is moot.
+        self._setup_map_page(
+            label="Overview",
+            opacities={"drone-flight": 0, "dem_layer": 0, "contour_layer": 0, "ortho_photo": 0},
+            su_style=STYLE_SU_OVERVIEW,
+            zooms=[
+                (self.maps["Page 1"]["Overview"], overview_boundary, self.items_dict['Scalebar Overivew Page 1']["obj"], 0),
+                (self.maps["Page 2"]["Overview"], overview_boundary, self.items_dict['Scalebar Overview Page 2']["obj"], 0),
+            ],
+            active_layers=[L["trench-boundaries"], L["SU_ShapeFile"], L["architecture"]],
+        )
 
+        # Ortho: drone imagery = the ortho photo (bottom of the stack).
+        self._setup_map_page(
+            label="Ortho",
+            opacities={"ortho_photo": 1},
+            su_style=STYLE_SU_ORTHO,
+            zooms=[
+                (self.maps["Page 1"]["Ortho"], L["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 1']["obj"], None),
+                (self.maps["Page 3"]["Ortho"], L["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 3']["obj"], None),
+            ],
+            active_layers=[L["trench-boundaries"], L["SU_ShapeFile"], L["architecture"], L["ortho_photo"]],
+        )
 
-        #add color to the SU ShapeFile layer
-        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_Pink.qml")
-
-        #zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Overview"], self.layers_dict[f"{self.su_info['trench']} overview boundary"], self.items_dict['Scalebar Overivew Page 1']["obj"], buffer_ratio=0)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict[f"{self.su_info['trench']} overview boundary"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=0)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-
-
-        # Draw order (setLayers: index 0 = top of stack). Invariant: the trench-boundaries
-        # outline sits ABOVE the architecture (rock mask) layer. The overview map has no
-        # drone-imagery layer, so the "one level above drone imagery" rule is moot here.
-        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["SU_ShapeFile"], self.layers_dict["architecture"]]  # List of active layers for the overview map item
-        self.maps["Page 1"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
-        self.maps["Page 2"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
-
-
-
-        #lock the Overview map items
-        lockItem(self.maps["Page 1"]["Overview"]) # Lock the overview map item, page 1
-        lockItem(self.maps["Page 2"]["Overview"])  # Lock the overview map item, page 2
-
-
-        #Ortho map
-        print("Setting up Ortho map item...")
-
-        self.layers_dict["ortho_photo"].setOpacity(1)  # Set the opacity of the ortho photo layer
-        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/Ortho_SU_view_yellow_outline.qml")
-
-        #zoom the ortho map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Ortho"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 3"]["Ortho"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 3']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-
-        # Draw order (setLayers: index 0 = top of stack). Invariant: the rock mask
-        # (architecture) sits directly BELOW the SU top layer and directly ABOVE the
-        # drone imagery (here the ortho photo).
-        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["SU_ShapeFile"], self.layers_dict["architecture"], self.layers_dict["ortho_photo"]]  # List of active layers for the ortho map item
-        self.maps["Page 1"]["Ortho"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
-        self.maps["Page 3"]["Ortho"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
-
-        #lock the ortho maps
-        lockItem(self.maps["Page 1"]["Ortho"]) # Lock the overview map item, page 1
-        lockItem(self.maps["Page 3"]["Ortho"])  # Lock the overview map item, page 2
-
-
-        #DEM map
-        print("Setting up DEM map item...")
-        self.layers_dict["drone-flight"].setOpacity(1)
-        self.layers_dict["dem_layer"].setOpacity(0.5)
-        self.layers_dict["dem_lower_layer"].setOpacity(1)
-        self.layers_dict["contour_layer"].setOpacity(1)  # Set the opacity of the contour layer
-        self.layers_dict["SU_ShapeFile"].loadNamedStyle("Styles/SU_black_outline.qml")  # Load the style for the SU ShapeFile layer
-        self.layers_dict["ortho_photo"].setOpacity(0)
-        
-
-        #zoom the DEM map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar DEM Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-        zoomToLayerWithBufferAndScalebar(self.maps["Page 4"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
-
-        # Draw order (setLayers: index 0 = top of stack). Invariant: the rock mask
-        # (architecture) sits directly BELOW the SU top layer and directly ABOVE the
-        # drone imagery (here the drone-flight raster).
-        active_layers = [self.layers_dict["contour_layer"], self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["dem_lower_layer"], self.layers_dict["SU_ShapeFile"], self.layers_dict["architecture"], self.layers_dict["drone-flight"]]  # List of active layers for the DEM map item
-        self.maps["Page 1"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
-        self.maps["Page 4"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
-        #lock DEM map items
-        lockItem(self.maps["Page 1"]["DEM"])  # Lock the overview map item, page 2
-        lockItem(self.maps["Page 4"]["DEM"])  # Lock the DEM map item, page 1
+        # DEM: drone imagery = the drone-flight raster (bottom); contours on top.
+        # NOTE: Page 4's DEM map reuses the 'Scalebar Overview Page 2' item because the
+        # template has no dedicated 'Scalebar DEM Page 4'. Preserved as-is (pre-existing
+        # behavior) — verify the page-2 overview scalebar isn't mis-sized before changing.
+        self._setup_map_page(
+            label="DEM",
+            opacities={"drone-flight": 1, "dem_layer": 0.5, "dem_lower_layer": 1, "contour_layer": 1, "ortho_photo": 0},
+            su_style=STYLE_SU_DEM,
+            zooms=[
+                (self.maps["Page 1"]["DEM"], L["SU_ShapeFile"], self.items_dict['Scalebar DEM Page 1']["obj"], None),
+                (self.maps["Page 4"]["DEM"], L["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"], None),
+            ],
+            active_layers=[L["contour_layer"], L["trench-boundaries"], L["dem_layer"], L["dem_lower_layer"], L["SU_ShapeFile"], L["architecture"], L["drone-flight"]],
+        )
 
 
 
@@ -639,8 +589,36 @@ class SUSheet():
         self.items_dict["Lower Elevation Page 4"]["obj"].setText(str(self.elevation_stats['min_elevation']))  # Set the elevation legend text
 
 
-    
-    
+    def _setup_map_page(self, *, label, opacities, su_style, zooms, active_layers):
+        """Configure one page type's map items (Overview / Ortho / DEM).
+
+        The step order is load-bearing (see caller): set layer opacities, restyle the SU
+        layer, zoom+scalebar each map, apply the shared draw order, then lock each map.
+
+        Args:
+            label (str): human-readable page-type name (for the progress print).
+            opacities (dict): layer-dict key -> opacity, applied before anything else.
+            su_style (str|None): .qml loaded onto the "SU_ShapeFile" layer, or None.
+            zooms (list): tuples of (map_item, zoom_layer, scalebar_item, buffer_ratio);
+                buffer_ratio=None uses zoomToLayerWithBufferAndScalebar's default (0.2).
+            active_layers (list): setLayers draw order (index 0 = top) for every map here.
+        """
+        print(f"Setting up {label} map item...")
+        for key, opacity in opacities.items():
+            self.layers_dict[key].setOpacity(opacity)
+        if su_style:
+            self.layers_dict["SU_ShapeFile"].loadNamedStyle(su_style)
+        for map_item, zoom_layer, scalebar_item, buffer_ratio in zooms:
+            if buffer_ratio is None:
+                zoomToLayerWithBufferAndScalebar(map_item, zoom_layer, scalebar_item)
+            else:
+                zoomToLayerWithBufferAndScalebar(map_item, zoom_layer, scalebar_item, buffer_ratio=buffer_ratio)
+        for map_item, *_ in zooms:
+            map_item.setLayers(active_layers)
+        for map_item, *_ in zooms:
+            lockItem(map_item)
+
+
     def load_layout_template(self, template_path):
         """
         Loads a QGIS layout template.
@@ -713,21 +691,6 @@ class SUSheet():
         exporter.exportToPdf(pdf_path, QgsLayoutExporter.PdfExportSettings())
 
 
-
-
-# SU_data = {
-#     "SU": SU,
-#     "TRENCH": TRENCH,
-#     "JobID": JobID,
-#     "description": "SU 17001 description specific",  # Add a description for the SU
-#     "SU_ShapeFile_name": SU_ShapeFile_name,
-#     "SU_ShapeFile": SU_ShapeFile,
-#     "DEM_path": DEM_path,
-# }
-
-
-
-
 def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_project_template, photogrammetry_path, contour_interval=0.02):
     """Generates a SU sheet for the given SU, trench, and job ID.
     Args:   
@@ -750,7 +713,6 @@ def generate_SU_Sheet(qgs, su, trench, job_id, year, description, pdf_path, qgs_
     dem_dir = os.path.join(gis_dir, "DEM")
     ortho_dir = os.path.join(gis_dir, "Orthos")
     DEM_path = get_DEM_path(job_id, dem_dir)
-    # DEM_path = os.path.join("DEM",f"Pgram_Job_{job_id}_{su.replace('_', '')}_dem.tif")
     su_sheet_trench_template_path = f"SU_Layout_Templates/SU_Template_{trench.split(' ')[1]}.qpt"
 
     layers_dict = {}
@@ -931,20 +893,3 @@ def close_QGS(qgs):
     """Exits the QGIS application."""
     print("Exiting QGIS Application...")
     qgs.exitQgis()
-
-# qgs = start_QGS()  # Start the QGIS application
-
-# # Generate the SU Sheet
-# try:
-#     # generate_SU_Sheet(qgs, SU, TRENCH, JobID, YEAR, DESCRIPTION, TEMPLATE_PDF_PATH, QGS_FILE_NAME, PATH)
-#     generate_SU_Sheet(qgs, "SU_17001", "Trench "+"SU_17001"[-5:-3]+"000", "707", "2025", "SU 17001 description specific", "new_layout.pdf", QGS_FILE_NAME, PATH)
-#     print("SU Sheet generated successfully.")
-# except Exception as e:
-#     print(f"Error generating SU Sheet: {e}")
-
-
-
-
-# # Exit QGIS Application
-# print("Exiting QGIS Application...")
-# qgs.exitQgis()
