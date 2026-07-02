@@ -570,7 +570,10 @@ class SUSheet():
         zoomToLayerWithBufferAndScalebar(self.maps["Page 2"]["Overview"], self.layers_dict[f"{self.su_info['trench']} overview boundary"], self.items_dict['Scalebar Overview Page 2']["obj"], buffer_ratio=0)  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
 
-        active_layers = [self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["trench-boundaries"]]  # List of active layers for the overview map item
+        # Draw order (setLayers: index 0 = top of stack). Invariant: the trench-boundaries
+        # outline sits ABOVE the architecture (rock mask) layer. The overview map has no
+        # drone-imagery layer, so the "one level above drone imagery" rule is moot here.
+        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["SU_ShapeFile"], self.layers_dict["architecture"]]  # List of active layers for the overview map item
         self.maps["Page 1"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         self.maps["Page 2"]["Overview"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
 
@@ -591,7 +594,10 @@ class SUSheet():
         zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["Ortho"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
         zoomToLayerWithBufferAndScalebar(self.maps["Page 3"]["Ortho"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Ortho Page 3']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
-        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["ortho_photo"]]  # List of active layers for the overview map item
+        # Draw order (setLayers: index 0 = top of stack). Invariant: the rock mask
+        # (architecture) sits directly BELOW the SU top layer and directly ABOVE the
+        # drone imagery (here the ortho photo).
+        active_layers = [self.layers_dict["trench-boundaries"], self.layers_dict["SU_ShapeFile"], self.layers_dict["architecture"], self.layers_dict["ortho_photo"]]  # List of active layers for the ortho map item
         self.maps["Page 1"]["Ortho"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         self.maps["Page 3"]["Ortho"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
 
@@ -614,7 +620,10 @@ class SUSheet():
         zoomToLayerWithBufferAndScalebar(self.maps["Page 1"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar DEM Page 1']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
         zoomToLayerWithBufferAndScalebar(self.maps["Page 4"]["DEM"], self.layers_dict["SU_ShapeFile"], self.items_dict['Scalebar Overview Page 2']["obj"])  # Zoom the overview map item to the SU ShapeFile layer with a buffer and scale bar
 
-        active_layers = [self.layers_dict["contour_layer"], self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["dem_lower_layer"], self.layers_dict["architecture"], self.layers_dict["SU_ShapeFile"], self.layers_dict["drone-flight"]]  # List of active layers for the overview map item
+        # Draw order (setLayers: index 0 = top of stack). Invariant: the rock mask
+        # (architecture) sits directly BELOW the SU top layer and directly ABOVE the
+        # drone imagery (here the drone-flight raster).
+        active_layers = [self.layers_dict["contour_layer"], self.layers_dict["trench-boundaries"], self.layers_dict["dem_layer"], self.layers_dict["dem_lower_layer"], self.layers_dict["SU_ShapeFile"], self.layers_dict["architecture"], self.layers_dict["drone-flight"]]  # List of active layers for the DEM map item
         self.maps["Page 1"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         self.maps["Page 4"]["DEM"].setLayers(active_layers)  # Set the layers for the overview map item, page 1
         #lock DEM map items
