@@ -2,6 +2,7 @@
 
 import sys
 import os
+import re
 
 
 # QGIS's bundled interpreter paths, copied from qgis's python-qgis-ltr.bat console.
@@ -134,8 +135,12 @@ def add_ortho_photo(job_id, project, layers_dict, ortho_dir):
 
     for file in os.listdir(ortho_dir):
 
-        #check if it is a jpg file and then split the filename by '_' and if the second index is matches the job ID, then add the layer
-        if file.endswith(".jpg") and file.split('_')[2] == job_id:
+        # Match the job number that follows "Job_" in the filename, regardless of any
+        # trailing "_SU..." suffix. Filenames vary: "Pgram_Job_801.jpg" (no suffix) and
+        # "Pgram_Job_791_SU21001.jpg" (with suffix) must both resolve to their job id.
+        # The old `file.split('_')[2]` broke on the no-suffix form (it yielded "801.jpg").
+        m = re.search(r"Job_(\d+)", file)
+        if file.lower().endswith(".jpg") and m and m.group(1) == str(job_id):
             ortho_photo_path = os.path.join(ortho_dir, file)
             print("Adding ortho photo layer...")
 
