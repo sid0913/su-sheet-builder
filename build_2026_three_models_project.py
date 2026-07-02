@@ -9,7 +9,7 @@ import os
 from qgis.core import (QgsApplication, QgsProject, QgsRasterLayer, QgsVectorLayer,
                        QgsCoordinateReferenceSystem, QgsFillSymbol, QgsReferencedRectangle)
 
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 SAMP = os.path.join(REPO, "SAM_prototype")
 ORTHO = os.path.join(REPO, "2026_GCP_Mapping.vrt")
 PROJ = os.path.join(REPO, "SAM_2026_three_models.qgs")

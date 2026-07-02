@@ -31,7 +31,7 @@ from segment_anything.utils.transforms import ResizeLongestSide
 from ultralytics import YOLO
 
 SP = os.path.dirname(os.path.abspath(__file__))
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 import sys
 ORTHO_SRC = sys.argv[1]
 CKPT = os.path.expanduser(r"~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth")

@@ -81,7 +81,7 @@ try:
             except Exception as e:
                 print(f"Error processing {su_obj}: {e}")
                 # Log the error to a file
-                with open(os.path.join(PATH, "AutomateRockMask", "shp_error_log.txt"), "a") as error_file:
+                with open(os.path.join(PATH, "AutomateSuSheetCreation", "shp_error_log.txt"), "a") as error_file:
                     error_file.write(f"{datetime.now(pytz.timezone('Europe/Rome')).strftime("%Y-%m-%d %H:%M:%S")} -- Error processing {su_obj}: {e}\n")
                 continue
 

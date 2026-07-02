@@ -8,8 +8,8 @@ import os, numpy as np, geopandas as gpd, rasterio
 from rasterio.windows import from_bounds
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
 
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
-SP = r"C:\Users\PHOTOG~1\AppData\Local\Temp\claude\c--Users-Photogrammetry-AutomateRockMask\e14cd478-34db-4a60-87d1-8ce4439fe5ad\scratchpad"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
+SP = r"C:\Users\PHOTOG~1\AppData\Local\Temp\claude\c--Users-Photogrammetry-AutomateSuSheetCreation\e14cd478-34db-4a60-87d1-8ce4439fe5ad\scratchpad"
 IN = REPO + r"\SAM_prototype\sam_architecture_2025.gpkg"
 OUT = REPO + r"\SAM_prototype\sam_architecture_2025_clean.gpkg"
 OVL = SP + r"\overlap.tif"

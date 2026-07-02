@@ -65,7 +65,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error generating SU Sheet: {e}")
             #open error text file and write the error message
-            with open(os.path.join(PATH, "AutomateRockMask", "error_log.txt"), "a") as error_file:
+            with open(os.path.join(PATH, "AutomateSuSheetCreation", "error_log.txt"), "a") as error_file:
                 error_file.write(f"{datetime.now(pytz.timezone('Europe/Rome')).strftime("%Y-%m-%d %H:%M:%S")} -- Error generating SU Sheet for {su}: {e}\n")
             continue
 

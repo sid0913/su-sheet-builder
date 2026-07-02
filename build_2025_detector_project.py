@@ -9,7 +9,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem, QgsFillSymbol, QgsReferencedRectangle,
 )
 
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 ORTHO = os.path.join(REPO, "GCP-Drone-Flight-2025.jpg")
 PRED = os.path.join(REPO, "SAM_prototype", "sam_architecture_2025_detector.gpkg")
 HUMAN = os.path.join(REPO, "Architecture_2025.shp")

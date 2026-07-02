@@ -8,7 +8,7 @@ from qgis.core import (
     QgsCoordinateReferenceSystem, QgsFillSymbol, QgsReferencedRectangle,
 )
 
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 ORTHO = os.path.join(REPO, "2026_GCP_Mapping.vrt")
 PRED = os.path.join(REPO, "SAM_prototype", "sam_architecture_2026_detector.gpkg")
 PROJ = os.path.join(REPO, "SAM_2026_detector.qgs")

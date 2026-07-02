@@ -22,7 +22,7 @@ from shapely.validation import make_valid
 from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
 
 SP = os.path.dirname(os.path.abspath(__file__))
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 OVERLAP = os.path.join(SP, "overlap.tif")
 CKPT = os.path.expanduser(r"~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth")
 FT = os.path.join(SP, "sam_decoder_multiyear.pth")

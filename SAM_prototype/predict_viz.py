@@ -7,7 +7,7 @@ import matplotlib.patches as mpatches
 from ultralytics import YOLO
 
 random.seed(1)
-SP = r"C:\Users\Photogrammetry\AutomateRockMask\SAM_prototype"
+SP = r"C:\Users\Photogrammetry\AutomateSuSheetCreation\SAM_prototype"
 WEIGHTS = os.path.join(SP, "yolo_runs", "feature_detector", "weights", "best.pt")
 VAL_IMG = os.path.join(SP, "yolo_dataset", "images", "val")
 VAL_LBL = os.path.join(SP, "yolo_dataset", "labels", "val")

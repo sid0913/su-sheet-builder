@@ -20,7 +20,7 @@ from segment_anything.utils.transforms import ResizeLongestSide
 
 random.seed(0); np.random.seed(0); torch.manual_seed(0)
 SP = os.path.dirname(os.path.abspath(__file__))
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 OVERLAP = os.path.join(SP, "overlap.tif")
 SHP = os.path.join(REPO, "Architecture_2025.shp")
 CKPT = os.path.expanduser(r"~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth")

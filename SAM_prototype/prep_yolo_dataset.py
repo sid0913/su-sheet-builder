@@ -22,8 +22,8 @@ import matplotlib.patches as mpatches
 
 random.seed(0); np.random.seed(0)
 SP = os.path.dirname(os.path.abspath(__file__))
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
-SCRATCH = r"C:\Users\PHOTOG~1\AppData\Local\Temp\claude\c--Users-Photogrammetry-AutomateRockMask\e14cd478-34db-4a60-87d1-8ce4439fe5ad\scratchpad"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
+SCRATCH = r"C:\Users\PHOTOG~1\AppData\Local\Temp\claude\c--Users-Photogrammetry-AutomateSuSheetCreation\e14cd478-34db-4a60-87d1-8ce4439fe5ad\scratchpad"
 OUT = os.path.join(SP, "yolo_dataset")
 TILE, STRIDE, MINBOX = 1024, 1024, 4   # px
 

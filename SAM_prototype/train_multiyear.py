@@ -18,7 +18,7 @@ from segment_anything import sam_model_registry
 from segment_anything.utils.transforms import ResizeLongestSide
 
 SP = os.path.dirname(os.path.abspath(__file__))
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 CKPT = os.path.expanduser(r"~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth")
 DEV = "cuda"; TILE = 1024
 random.seed(0); np.random.seed(0); torch.manual_seed(0)

@@ -9,7 +9,7 @@ from qgis.core import (
     QgsReferencedRectangle,
 )
 
-REPO = r"C:\Users\Photogrammetry\AutomateRockMask"
+REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
 DRONE = os.path.join(REPO, "GCP-Drone-Flight-2025.jpg")
 SAM = os.path.join(REPO, "SAM_prototype", "sam_architecture_2025_overlap.gpkg")
 HUMAN = os.path.join(REPO, "Architecture_2025.shp")

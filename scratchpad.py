@@ -29,10 +29,10 @@ if __name__ == "__main__":
         trench = "Trench "+su[-5:-3]+"000"
         description = f"This is {su} description specific"
 
-        su_sheet_pdf_path = os.path.join(PATH, "AutomateRockMask", "SU_Sheets", "SU_Sheet_PDFs",f"{su}.pdf)")
+        su_sheet_pdf_path = os.path.join(PATH, "AutomateSuSheetCreation", "SU_Sheets", "SU_Sheet_PDFs",f"{su}.pdf)")
         print(f"Generating SU Sheet for {su} in {trench} with Job ID {job_id}...")
 
-        if os.path.exists(os.path.join(PATH, "AutomateRockMask", su_sheet_pdf_path)):
+        if os.path.exists(os.path.join(PATH, "AutomateSuSheetCreation", su_sheet_pdf_path)):
             print(f"SU Sheet {su_sheet_pdf_path} already exists, skipping...")
             continue
 
@@ -43,7 +43,7 @@ if __name__ == "__main__":
         # except Exception as e:
         #     print(f"Error generating SU Sheet: {e}")
         #     #open error text file and write the error message
-        #     with open(os.path.join(PATH, "AutomateRockMask", "error_log.txt"), "a") as error_file:
+        #     with open(os.path.join(PATH, "AutomateSuSheetCreation", "error_log.txt"), "a") as error_file:
         #         error_file.write(f"{datetime.now(pytz.timezone('Europe/Rome')).strftime("%Y-%m-%d %H:%M:%S")} -- Error generating SU Sheet for {su}: {e}\n")
         #     continue
 
