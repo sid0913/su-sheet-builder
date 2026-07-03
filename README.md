@@ -165,9 +165,14 @@ compared three ways of proposing where the stones are:
 **We chose `yolo_sam`**: the detector front-end keeps SAM on actual stones, so the layer lands
 near the human count instead of drowning in noise. The images tell the rest — same scene, three models:
 
-![yolo_sam — rocks only, ≈ human count](AutomatingRockMaskImages/yoloSAM.png)
-![rgb_sam — segment-everything, noisy](AutomatingRockMaskImages/rgbSAM.png)
-![rgb_dem_sam — DEM-fusion, no better than RGB](AutomatingRockMaskImages/rgb_dem_SAM.png)
+**`yolo_sam` — shipped ✅** · YOLO detector → SAM traces each box. Rocks only, ~2.8k polygons ≈ the human count. Clean.
+![yolo_sam result — rocks only, near the human count](AutomatingRockMaskImages/yoloSAM.png)
+
+**`rgb_sam`** · SAM auto-grids points over everything. ~13–17k polygons — over-segments ground, rubble, and vegetation. Noisy.
+![rgb_sam result — segment-everything, noisy](AutomatingRockMaskImages/rgbSAM.png)
+
+**`rgb_dem_sam`** · same as `rgb_sam`, with a DEM hillshade blended into SAM's input. ~13–17k polygons — height didn't beat plain RGB.
+![rgb_dem_sam result — DEM-fusion, no better than RGB](AutomatingRockMaskImages/rgb_dem_SAM.png)
 
 Run it on a new flight:
 
@@ -176,9 +181,13 @@ Run it on a new flight:
     SAM_prototype/run_rock_mask.py --model yolo_sam <drone_ortho.tif> SAM_prototype/out.gpkg
 ```
 
-**Model weights** for the shipped `yolo_sam` (large binaries, not in git):
-- YOLO detector: `<!-- TODO: storage location of the detector weights (best.pt) -->`
-- Fine-tuned SAM decoder: `<!-- TODO: storage location of sam_decoder_multiyear.pth -->`
+**Model weights** for the shipped `yolo_sam` are large binaries kept **out of git**. After
+downloading, drop each at the exact path the code reads:
+- YOLO detector → `SAM_prototype/yolo_runs/feature_detector/weights/best.pt`
+- Fine-tuned SAM decoder → `SAM_prototype/sam_decoder_multiyear.pth`
+- Base SAM ViT-H (auto-downloaded on first run) → `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth`
+
+Download the trained weights from: `<!-- TODO: where the weights are archived (drive / cloud link) -->`
 
 Full model card — architecture, training, metrics, and the DEM-fusion experiment — is in
 [`SAM_prototype/ROCK_MODEL.md`](SAM_prototype/ROCK_MODEL.md); the per-season operational steps live

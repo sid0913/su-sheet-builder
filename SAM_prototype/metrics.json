@@ -1,0 +1,11 @@
+{
+  "gt_count": 683,
+  "pred_count": 534,
+  "tp_iou50": 55,
+  "precision_iou50": 0.103,
+  "recall_iou50": 0.081,
+  "f1_iou50": 0.09,
+  "mean_best_iou": 0.111,
+  "median_best_iou": 0.01,
+  "gt_area_coverage": 0.645
+}

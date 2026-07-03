@@ -52,14 +52,24 @@ train a per-class detector). So:
 
 ## 3. Files
 
-Weights (on disk, **gitignored** — repo tracks only `.py`):
+The repo tracks the **code, docs, and small metrics JSONs**. Everything large — model
+weights, geopackages/shapefiles, orthos/DEMs, and preview PNGs — is **gitignored**.
 
-| Role | Path |
-|---|---|
-| Detector (trained) | `SAM_prototype/yolo_runs/feature_detector/weights/best.pt` |
-| SAM decoder (fine-tuned, multi-year) — used by the pipeline | `SAM_prototype/sam_decoder_multiyear.pth` |
-| SAM decoder (fine-tuned, 2025-only, earlier) | `SAM_prototype/sam_decoder_finetuned.pth` |
-| Base SAM ViT-H (frozen encoder) | `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth` |
+### Large files (not in git) — where to place them
+Clone the repo, then download the weights and drop each at the **exact path** below (the code
+reads these paths verbatim — see `run_rock_mask.py`). The two fine-tuned weights are ours; the
+base checkpoints are public and normally **auto-download on first run**.
+
+| Weight | Place at (required by the code) | Source |
+|---|---|---|
+| **Detector** (trained YOLOv8m) | `SAM_prototype/yolo_runs/feature_detector/weights/best.pt` | our archive — *TODO: link* |
+| **SAM decoder** (fine-tuned, multi-year) — used by all 3 models | `SAM_prototype/sam_decoder_multiyear.pth` | our archive — *TODO: link* |
+| SAM decoder (fine-tuned, 2025-only, earlier) | `SAM_prototype/sam_decoder_finetuned.pth` | our archive (optional) |
+| Base SAM ViT-H (frozen encoder) | `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth` | Meta SAM release (auto-downloads) |
+| Base YOLO weights (training only) | `SAM_prototype/yolov8m.pt` | Ultralytics (auto-downloads) |
+
+Result layers (`sam_architecture_*.gpkg/.shp`) are **outputs**, not inputs — they are regenerated
+by `run_rock_mask.py`, so they don't need to be downloaded.
 
 Scripts (committed):
 

@@ -88,7 +88,8 @@ used to be hours of hand-tracing in QGIS. `SAM_prototype/ROCK_MODEL.md` is the d
 (training, metrics, DEM-fusion experiment); **the operational steps are here.**
 
 1. **Reuse the existing weights — no retrain needed** unless you've hand-labelled a new season.
-   All gitignored; back them up off-repo (see README weights placeholders):
+   Weights are gitignored; back them up off-repo and, on a fresh clone, place each at the exact
+   path below (`run_rock_mask.py` reads these verbatim — see ROCK_MODEL.md §3 "Large files"):
    - YOLO detector: `SAM_prototype/yolo_runs/feature_detector/weights/best.pt`
    - Fine-tuned SAM decoder (multi-year, used by all 3 models): `SAM_prototype/sam_decoder_multiyear.pth`
    - Base SAM ViT-H (frozen encoder, auto-downloaded): `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth`
