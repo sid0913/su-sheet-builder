@@ -1,7 +1,13 @@
 """
 Unified rock-mask runner — ONE script, THREE toggleable models.
 
-    python run_rock_mask.py --model MODEL <ortho.tif> <out.gpkg> [--dem DEM.tif]
+    python run_rock_mask.py --model MODEL <ortho> <out.gpkg> [--dem DEM.tif]
+
+INPUT: a *georeferenced* RGB ortho. Pass the aligned PNG via its .vrt
+(e.g. 2026_GCP_Mapping.vrt), NOT the raw .tif — the .tif is slightly shifted,
+so its polygons land off-position; the PNG/.vrt carries the correct coordinates.
+The input must carry a CRS/geotransform (GeoTIFF, or PNG/JPG + world file/.vrt);
+WarpedVRT reprojects it to UTM 32N on the fly.
 
     MODEL = yolo_sam     YOLO feature-detector boxes -> fine-tuned SAM (box-prompted).
                          Rocks/stones ONLY, ~human polygon count. RECOMMENDED layer.

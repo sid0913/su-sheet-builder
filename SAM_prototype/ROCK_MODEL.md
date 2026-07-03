@@ -91,14 +91,19 @@ Environment: a CUDA venv at `C:\Users\Photogrammetry\sv`
 
 ## 4. How to run on a new flight
 
-> The canonical per-season operational checklist is in **`CLAUDE.md` → "New-season rock-mask
-> rollover"**. This section is the short form.
+> The canonical per-season operational checklist is in **`CLAUDE.md` → "Full rock-mask
+> pipeline"**. This section is the short form.
+>
+> **Input:** feed the georeferenced PNG via its `.vrt` (e.g. `2026_GCP_Mapping.vrt`), **not the
+> raw `.tif`** — the TIF is slightly shifted, so its polygons land off-position; the PNG/`.vrt`
+> carries the correct coordinates. Output `.gpkg` → convert to `.shp` (`ogr2ogr`) to load as the
+> QGIS architecture layer.
 
 ```bash
 # 1. (GPU) detect + segment -> polygons  (sv CUDA venv)
 "C:/Users/Photogrammetry/sv/Scripts/python.exe" \
     SAM_prototype/run_rock_mask.py --model yolo_sam \
-    "path/to/new_ortho.tif" \
+    "path/to/aligned_ortho.vrt" \
     "SAM_prototype/sam_architecture_NEW.gpkg"
 
 # 2. View in QGIS (edit paths in the builder, run under QGIS python)

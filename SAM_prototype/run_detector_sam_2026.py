@@ -31,7 +31,10 @@ from ultralytics import YOLO
 
 SP = os.path.dirname(os.path.abspath(__file__))
 REPO = r"C:\Users\Photogrammetry\AutomateSuSheetCreation"
-ORTHO_SRC = os.path.join(REPO, "2026_GCP_Mapping.tif")
+# Feed the georeferenced PNG (via its .vrt), NOT the .tif: the .tif is slightly
+# shifted, so its polygons land off-position; the PNG/.vrt carries the correct
+# coordinates. (WarpedVRT still normalises the CRS to UTM 32N.)
+ORTHO_SRC = os.path.join(REPO, "2026_GCP_Mapping.vrt")
 CKPT = os.path.expanduser(r"~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth")
 FT = os.path.join(SP, "sam_decoder_multiyear.pth")
 DET = os.path.join(SP, "yolo_runs", "feature_detector", "weights", "best.pt")

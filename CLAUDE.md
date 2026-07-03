@@ -82,33 +82,58 @@ Notes:
 - Legacy per-model scripts (`run_detector_sam.py`, `run_detector_sam_2026.py`) still
   work but are superseded by `run_rock_mask.py`.
 
-### New-season rock-mask rollover (regenerate the `Architecture_YYYY` draft)
+### Full rock-mask pipeline: drone ortho → architecture shapefile
 Each season, produce the stone/architecture layer from the new drone ortho — the first pass that
 used to be hours of hand-tracing in QGIS. `SAM_prototype/ROCK_MODEL.md` is the deep model card
 (training, metrics, DEM-fusion experiment); **the operational steps are here.**
 
-1. **Reuse the existing weights — no retrain needed** unless you've hand-labelled a new season.
-   Weights are gitignored; back them up off-repo and, on a fresh clone, place each at the exact
-   path below (`run_rock_mask.py` reads these verbatim — see ROCK_MODEL.md §3 "Large files"):
-   - YOLO detector: `SAM_prototype/yolo_runs/feature_detector/weights/best.pt`
-   - Fine-tuned SAM decoder (multi-year, used by all 3 models): `SAM_prototype/sam_decoder_multiyear.pth`
-   - Base SAM ViT-H (frozen encoder, auto-downloaded): `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth`
-2. **Run `yolo_sam`** on the season's ortho — GPU must be free; use the `sv` CUDA venv, **not** QGIS Python:
-   ```bash
-   "C:/Users/Photogrammetry/sv/Scripts/python.exe" SAM_prototype/run_rock_mask.py \
-       --model yolo_sam GIS_YYYY/Orthos/<flight_ortho>.tif SAM_prototype/sam_architecture_YYYY_detector.gpkg
-   ```
-   Reprojects any CRS to UTM 32N on the fly (WarpedVRT); writes a `_raw.gpkg` checkpoint before dedup
-   and **skips re-segmentation if that checkpoint exists** (re-tune dedup cheaply). Knob: `CONF`
-   (detector confidence, default 0.25) — raise for fewer/cleaner polygons, lower for coverage.
-3. **Review in QGIS**: build a viewer project (`build_2026_project.py` — edit paths, run under QGIS
-   Python), eyeball against the ortho, prune stragglers; use the result as the draft `Architecture_YYYY`.
-4. **Rare types stay manual**: the model is single-class ("rock") and assigns **no `Type`** — hand-segment
-   and label rare features (Cistern, Column, Street, …); too few training examples to learn them.
-5. **Retrain only when you add a hand-labelled season**, all in the `sv` venv:
-   `prep_yolo_dataset.py` (rebuild 1-class tiles + `types.json` from `Architecture_{years}.shp`) →
-   `train_detector.py` (YOLOv8m) → `train_multiyear.py` (fine-tune the SAM decoder). YOLO
-   `train()`/inference on Windows must be under `if __name__ == "__main__":` (DataLoader spawn).
+**0. Input ortho — use the georeferenced PNG, NOT the TIF.** The model needs a *georeferenced*
+RGB raster (it reprojects the source CRS → UTM 32N via WarpedVRT, so the input **must** carry a
+CRS/geotransform). Feed the **aligned PNG through its `.vrt`** (e.g. `2026_GCP_Mapping.vrt`,
+which wraps `2026_GCP_Mapping.png`). **Do not feed the raw `.tif`** — the TIF is **slightly
+shifted**, so its polygons land off-position; the PNG/`.vrt` was re-aligned to the correct
+coordinates. A plain PNG/JPG with **no** world file/`.vrt`/CRS will not work.
+
+**1. Place the weights** (gitignored — back them up off-repo; on a fresh clone drop each at the
+exact path `run_rock_mask.py` reads — see ROCK_MODEL.md §3 "Large files"). No retrain needed
+unless you've hand-labelled a new season:
+- YOLO detector: `SAM_prototype/yolo_runs/feature_detector/weights/best.pt` (~207 MB)
+- Fine-tuned SAM decoder (multi-year, used by all 3 models): `SAM_prototype/sam_decoder_multiyear.pth` (~16 MB)
+- Base SAM ViT-H (frozen encoder, auto-downloaded): `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth`
+
+**2. Run `yolo_sam`** — GPU must be free; use the `sv` CUDA venv, **not** QGIS Python. Output is a
+GeoPackage in EPSG:32632:
+```bash
+"C:/Users/Photogrammetry/sv/Scripts/python.exe" SAM_prototype/run_rock_mask.py \
+    --model yolo_sam 2026_GCP_Mapping.vrt SAM_prototype/sam_architecture_YYYY_detector.gpkg
+```
+Writes a `_raw.gpkg` checkpoint before dedup and **skips re-segmentation if that checkpoint exists**
+(re-tune dedup cheaply). Knob: `CONF` (detector confidence, default 0.25) — raise for fewer/cleaner
+polygons, lower for coverage. ~4 min for a full flight on the 4090.
+
+**3. Convert the GeoPackage to a shapefile** so it drops straight into the QGIS projects (the
+SU-sheet architecture layer and the `build_*_project.py` viewers both take a layer path; `.shp`
+matches the hand-digitized `Architecture_YYYY.shp` convention). Run under any env with GDAL
+(QGIS Python or the `sv` venv), or use QGIS *Export → Save Features As → ESRI Shapefile*:
+```bash
+ogr2ogr -f "ESRI Shapefile" SAM_prototype/sam_architecture_YYYY_detector.shp \
+    SAM_prototype/sam_architecture_YYYY_detector.gpkg
+```
+(The `.gpkg` already loads directly in QGIS too — `build_2026_three_models_project.py` adds it via
+`QgsVectorLayer(..., "ogr")`; the `.shp` step is for using it as the SU-sheet architecture layer.)
+
+**4. Load / review in QGIS**: build a viewer project (`build_2026_project.py` /
+`build_2026_three_models_project.py` — edit paths, run under QGIS Python), eyeball against the ortho,
+prune stragglers; use the result as the draft `Architecture_YYYY`.
+
+**5. Rare types stay manual**: the model is single-class ("rock") and assigns **no `Type`** — the
+SU-sheet architecture QML styles on `Type`, so hand-label rare features (Cistern, Column, Street, …)
+and populate `Type` where needed; too few training examples to learn them.
+
+**6. Retrain only when you add a hand-labelled season**, all in the `sv` venv:
+`prep_yolo_dataset.py` (rebuild 1-class tiles + `types.json` from `Architecture_{years}.shp`) →
+`train_detector.py` (YOLOv8m) → `train_multiyear.py` (fine-tune the SAM decoder). YOLO
+`train()`/inference on Windows must be under `if __name__ == "__main__":` (DataLoader spawn).
 
 ---
 
@@ -176,7 +201,9 @@ through `generate_SU_Sheet()`; most paths derive from it, the rest live in **`YE
    `Trench_{t}_Overview_Zoom_Rough_Boundary.shp` — a copy of the trench clipping boundary; frames the
    Overview map at buffer 0 (exact extent).
 7b. **Drone-flight background**: 2026 switched from the raw `.tif` to an edited PNG wrapped in a
-   georeferenced **`.vrt`** (EPSG:32632 + overviews). Co-locate `*_GCP_Mapping.{vrt,png,png.ovr,pgw,prj}`
+   georeferenced **`.vrt`** (EPSG:32632 + overviews) — the `.tif` is slightly **shifted**, the
+   PNG/`.vrt` is aligned to the correct coordinates (same reason the rock-mask model reads the
+   `.vrt`, see "Full rock-mask pipeline" above). Co-locate `*_GCP_Mapping.{vrt,png,png.ovr,pgw,prj}`
    in the repo root, point `drone_flight` at the `.vrt`, and set the same `.vrt` as `ORTHO` in the SAM
    `build_*_project.py`. Earlier seasons used a plain `.jpg`; either works.
 8. **Sanity check**: `"C:\Program Files\QGIS 3.40.8\apps\Python312\python.exe" -m py_compile
