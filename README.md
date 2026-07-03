@@ -89,7 +89,7 @@ So the “top” OBJ is effectively turned into a 2D footprint in project coordi
 Paths are currently hard-coded or built from variables (e.g. `PATH = "C:\\Users\\Photogrammetry"`). The logic expects a structure along these lines:
 
 - **Base path** (e.g. `PATH`): root for photogrammetry/GIS data.
-- **`PATH/AutomateRockMask/`** (or equivalent): script location; output PDFs (e.g. `SU_Sheets/SU_Sheet_PDFs/<SU>.pdf`), error logs.
+- **`PATH/AutomateSuSheetCreation/`** (or equivalent): script location; error logs (`error_log.txt`). Output PDFs are written to `Volumetrics_<year>/<SU>.pdf`.
 - **`PATH/GIS_2025/3D_SU_Shapefiles/`**: SU polygon shapefiles (`SU_<n>_EPSG_32632.shp`).
 - **`PATH/Volumetrics_2025/SU Top OBJs/`**: OBJ files (`SU_<n>_top.obj`) used when generating shapefiles.
 - **`PATH/Orthos/`**: Orthophoto JPGs; filename pattern used to match **job ID** (e.g. `*_<job_id>_*.jpg`).
@@ -141,6 +141,48 @@ It looks up layout items by display name (e.g. “DEM Page 1”, “Ortho Page 1
 
 4. **DrawMasks**  
    Run `DrawMasks.py` with QGIS Python to load the template project; adjust the project path inside the script if needed.
+
+---
+
+## Bonus: auto-generating the rock-mask (architecture) layer
+
+Every season the stone-by-stone **architecture layer** (`Architecture_<year>.shp`) — every
+individual rock traced as its own polygon — was digitized **by hand** from the drone ortho in
+QGIS. Thousands of stones, hours of monotonous clicking. This repo now **automates that first
+pass**: point it at the georeferenced drone ortho and it identifies and outlines every rock into
+a reviewable GIS layer. Rare features (e.g. **cisterns**) are still segmented by hand — there
+weren't enough training examples to learn them.
+
+We fine-tuned **Segment Anything (SAM)** on three seasons of hand-labelled stones (2023–2025) and
+compared three ways of proposing where the stones are:
+
+| Model | How stones are found | Result |
+|---|---|---|
+| **`yolo_sam`** — shipped ✅ | a trained YOLO detector boxes each stone, SAM traces it | **~2.8k rocks, ≈ the human count** — clean |
+| `rgb_sam` | SAM auto-grids points over the whole tile | ~13–17k polygons — over-segments (ground, rubble, veg) |
+| `rgb_dem_sam` | same, with a DEM hillshade blended into the input | ~13–17k — height didn't beat plain RGB |
+
+**We chose `yolo_sam`**: the detector front-end keeps SAM on actual stones, so the layer lands
+near the human count instead of drowning in noise. The images tell the rest — same scene, three models:
+
+![yolo_sam — rocks only, ≈ human count](AutomatingRockMaskImages/yoloSAM.png)
+![rgb_sam — segment-everything, noisy](AutomatingRockMaskImages/rgbSAM.png)
+![rgb_dem_sam — DEM-fusion, no better than RGB](AutomatingRockMaskImages/rgb_dem_SAM.png)
+
+Run it on a new flight:
+
+```bash
+"C:/Users/Photogrammetry/sv/Scripts/python.exe" \
+    SAM_prototype/run_rock_mask.py --model yolo_sam <drone_ortho.tif> SAM_prototype/out.gpkg
+```
+
+**Model weights** for the shipped `yolo_sam` (large binaries, not in git):
+- YOLO detector: `<!-- TODO: storage location of the detector weights (best.pt) -->`
+- Fine-tuned SAM decoder: `<!-- TODO: storage location of sam_decoder_multiyear.pth -->`
+
+Full model card — architecture, training, metrics, and the DEM-fusion experiment — is in
+[`SAM_prototype/ROCK_MODEL.md`](SAM_prototype/ROCK_MODEL.md); the per-season operational steps live
+in `CLAUDE.md`.
 
 ---
 

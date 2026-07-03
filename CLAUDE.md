@@ -82,6 +82,33 @@ Notes:
 - Legacy per-model scripts (`run_detector_sam.py`, `run_detector_sam_2026.py`) still
   work but are superseded by `run_rock_mask.py`.
 
+### New-season rock-mask rollover (regenerate the `Architecture_YYYY` draft)
+Each season, produce the stone/architecture layer from the new drone ortho — the first pass that
+used to be hours of hand-tracing in QGIS. `SAM_prototype/ROCK_MODEL.md` is the deep model card
+(training, metrics, DEM-fusion experiment); **the operational steps are here.**
+
+1. **Reuse the existing weights — no retrain needed** unless you've hand-labelled a new season.
+   All gitignored; back them up off-repo (see README weights placeholders):
+   - YOLO detector: `SAM_prototype/yolo_runs/feature_detector/weights/best.pt`
+   - Fine-tuned SAM decoder (multi-year, used by all 3 models): `SAM_prototype/sam_decoder_multiyear.pth`
+   - Base SAM ViT-H (frozen encoder, auto-downloaded): `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth`
+2. **Run `yolo_sam`** on the season's ortho — GPU must be free; use the `sv` CUDA venv, **not** QGIS Python:
+   ```bash
+   "C:/Users/Photogrammetry/sv/Scripts/python.exe" SAM_prototype/run_rock_mask.py \
+       --model yolo_sam GIS_YYYY/Orthos/<flight_ortho>.tif SAM_prototype/sam_architecture_YYYY_detector.gpkg
+   ```
+   Reprojects any CRS to UTM 32N on the fly (WarpedVRT); writes a `_raw.gpkg` checkpoint before dedup
+   and **skips re-segmentation if that checkpoint exists** (re-tune dedup cheaply). Knob: `CONF`
+   (detector confidence, default 0.25) — raise for fewer/cleaner polygons, lower for coverage.
+3. **Review in QGIS**: build a viewer project (`build_2026_project.py` — edit paths, run under QGIS
+   Python), eyeball against the ortho, prune stragglers; use the result as the draft `Architecture_YYYY`.
+4. **Rare types stay manual**: the model is single-class ("rock") and assigns **no `Type`** — hand-segment
+   and label rare features (Cistern, Column, Street, …); too few training examples to learn them.
+5. **Retrain only when you add a hand-labelled season**, all in the `sv` venv:
+   `prep_yolo_dataset.py` (rebuild 1-class tiles + `types.json` from `Architecture_{years}.shp`) →
+   `train_detector.py` (YOLOv8m) → `train_multiyear.py` (fine-tune the SAM decoder). YOLO
+   `train()`/inference on Windows must be under `if __name__ == "__main__":` (DataLoader spawn).
+
 ---
 
 ## SU Sheet generation pipeline

@@ -5,5 +5,14 @@
 !ShapeFile.png
 !su_sheet_example.png
 
-# SAM prototype is developed separately; don't track it here
-SAM_prototype/
+# Rock-mask result screenshots shown in the README
+!AutomatingRockMaskImages/
+!AutomatingRockMaskImages/*.png
+
+# SAM prototype: keep only the model-card doc the README links to;
+# ignore its code, data, and model weights (large binaries).
+# (Must un-ignore the dir first — the global `*` above excludes it,
+#  and a negation can't re-include a file whose parent dir is excluded.)
+!SAM_prototype/
+SAM_prototype/*
+!SAM_prototype/ROCK_MODEL.md
