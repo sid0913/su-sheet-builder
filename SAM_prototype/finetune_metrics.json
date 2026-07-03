@@ -1,0 +1,12 @@
+{
+  "test_stones": 1232,
+  "train_stones": 1853,
+  "base_mean_iou": 0.602,
+  "base_median_iou": 0.624,
+  "finetuned_mean_iou": 0.709,
+  "finetuned_median_iou": 0.746,
+  "abs_gain": 0.107,
+  "rel_gain_pct": 17.8,
+  "epochs": 40,
+  "runtime_s": 305.0
+}

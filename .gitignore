@@ -1,0 +1,22 @@
+*
+!*.py
+!requirements.txt
+!README.md
+!ShapeFile.png
+!su_sheet_example.png
+
+# Rock-mask result screenshots shown in the README
+!AutomatingRockMaskImages/
+!AutomatingRockMaskImages/*.png
+
+# SAM prototype: track the code, docs, and small metrics JSONs. The large
+# binaries — model weights (*.pt/*.pth), geopackages/shapefiles, orthos, and
+# preview PNGs — stay out of git. See ROCK_MODEL.md "Large files (not in git)"
+# for where to place the weights after downloading so the code runs.
+# (Un-ignore the dir first: the global `*` excludes it, and a negation can't
+#  re-include a file whose parent dir is excluded.)
+!SAM_prototype/
+SAM_prototype/*
+!SAM_prototype/*.py
+!SAM_prototype/*.md
+!SAM_prototype/*.json
