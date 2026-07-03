@@ -187,7 +187,8 @@ downloading, drop each at the exact path the code reads:
 - Fine-tuned SAM decoder → `SAM_prototype/sam_decoder_multiyear.pth`
 - Base SAM ViT-H (auto-downloaded on first run) → `~/.cache/torch/hub/checkpoints/sam_vit_h_4b8939.pth`
 
-Download the trained weights from: `<!-- TODO: where the weights are archived (drive / cloud link) -->`
+Download the trained weights (for all three models) from Google Drive:
+https://drive.google.com/drive/folders/1ynm_QLasgrduimek-i76Cc30tHWEjyY7?usp=drive_link
 
 Full model card — architecture, training, metrics, and the DEM-fusion experiment — is in
 [`SAM_prototype/ROCK_MODEL.md`](SAM_prototype/ROCK_MODEL.md); the per-season operational steps live
