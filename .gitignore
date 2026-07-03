@@ -1,0 +1,9 @@
+*
+!*.py
+!requirements.txt
+!README.md
+!ShapeFile.png
+!su_sheet_example.png
+
+# SAM prototype is developed separately; don't track it here
+SAM_prototype/
